@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a7d63" />
+    <title>Roomie Pantry</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Roomie Pantry</h1>
+        <p>Shared pantry tracking for housemates</p>
+      </header>
+
+      <section id="authSection" class="card">
+        <h2>Sign In / Register</h2>
+        <form id="authForm" class="grid-form">
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Password <input name="password" type="password" minlength="8" required /></label>
+          <div class="row">
+            <button type="submit" name="action" value="login">Login</button>
+            <button type="submit" name="action" value="register">Register</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="appSection" class="hidden">
+        <div class="card">
+          <div class="row between wrap">
+            <h2 id="welcomeText">Dashboard</h2>
+            <button id="logoutBtn" class="secondary">Logout</button>
+          </div>
+          <div class="row wrap">
+            <label>
+              Household
+              <select id="householdSelect"></select>
+            </label>
+            <form id="createHouseholdForm" class="inline-form">
+              <input name="name" placeholder="New household" required />
+              <button type="submit">Create</button>
+            </form>
+            <form id="joinHouseholdForm" class="inline-form">
+              <input name="inviteCode" placeholder="Invite code" required />
+              <button type="submit" class="secondary">Join</button>
+            </form>
+          </div>
+          <p id="inviteCodeText" class="muted"></p>
+        </div>
+
+        <div class="grid">
+          <section class="card">
+            <h3>Pantry Items</h3>
+            <form id="pantryForm" class="grid-form compact">
+              <input name="name" placeholder="Item name" required />
+              <input name="quantity" type="number" min="0" step="0.01" value="1" required />
+              <input name="unit" placeholder="Unit" value="pcs" required />
+              <input name="category" placeholder="Category" value="General" required />
+              <input name="expiryDate" type="date" />
+              <button type="submit">Add</button>
+            </form>
+            <ul id="pantryList" class="list"></ul>
+          </section>
+
+          <section class="card">
+            <h3>Shopping List</h3>
+            <form id="shoppingForm" class="row wrap">
+              <input name="name" placeholder="Need to buy..." required />
+              <input name="quantity" type="number" min="1" step="1" value="1" required />
+              <button type="submit">Add</button>
+            </form>
+            <ul id="shoppingList" class="list"></ul>
+          </section>
+        </div>
+
+        <section class="card">
+          <h3>Activity</h3>
+          <ul id="activityList" class="list"></ul>
+        </section>
+      </section>
+
+      <p id="message" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
