@@ -2,6 +2,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const express = require('express');
 const cors = require('cors');
+const { rateLimit } = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { run, get, all, initDb } = require('./db');
@@ -13,6 +14,22 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-secret-change-me';
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+const authRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many auth attempts. Please try again later.' },
+});
+
+const apiRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
 
 function generateInviteCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -77,7 +94,7 @@ function computeExpiryStatus(expiryDate) {
   return { status: 'fresh', daysUntilExpiry: days };
 }
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authRateLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || typeof email !== 'string') return sendError(res, 400, 'Valid email is required.');
   if (!password || password.length < 8) return sendError(res, 400, 'Password must be at least 8 characters.');
@@ -99,7 +116,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authRateLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return sendError(res, 400, 'Email and password are required.');
 
@@ -111,6 +128,8 @@ app.post('/api/auth/login', async (req, res) => {
 
   return res.json({ token: createToken(user), user: toApiUser(user) });
 });
+
+app.use('/api', apiRateLimiter);
 
 app.get('/api/me', authMiddleware, async (req, res) => {
   const user = await get('SELECT id, email, created_at FROM users WHERE id = ?', [req.user.id]);
