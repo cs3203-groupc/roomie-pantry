@@ -1,6 +1,6 @@
 # Roomie-pantry 
 
-A collaborative grocery and pantry app built for roommates to cut food waste, split items easily, and cook with what’s on hand.
+RoomiePantry is a collaborative grocery tracking and kitchen management app built specifically for shared living spaces. It is designed for students and young professionals, it bridges the gap between communal shopping and personal inventory by cutting down on household food waste, clarifying who bought what, and eliminating the friction of meal planning in shared kitchens. With real-time syncing and smart pantry monitoring, housemates can coordinate shopping effortlessly and turn expiring leftovers into quick,      low-cost meals.
 
 ## Features
 
