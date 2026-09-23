@@ -25,3 +25,9 @@ RoomiePantry is a collaborative grocery tracking and kitchen management app buil
 4. Commit your changes: `git commit -m "feat: add receipt parsing"`
 5. Push to the branch: `git push origin feature/cool-feature`
 6. Open a Pull Request.
+
+## Testing
+Run the test suite using `npm`:
+
+```bash
+npm test
