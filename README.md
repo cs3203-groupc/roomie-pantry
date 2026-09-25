@@ -9,6 +9,20 @@ RoomiePantry is a collaborative grocery tracking and kitchen management app buil
 * "Cook Now" Engine: Recommends minimal-cleanup, single-serving meals prioritizing ingredients about to expire.
 * Live Grocery Sync: Cloud-synced communal shopping lists.
 
+### Setup
+
+1. Clone the repository:
+   `git clone <repository-url>`
+
+2. Navigate to the project:
+   `cd roomiepantry`
+
+3. Install dependencies:
+   `npm install`
+
+4. Start the application:
+   `npm start`
+   
 ## Roadmap
 
 | Phase | Milestone | Target Date |
