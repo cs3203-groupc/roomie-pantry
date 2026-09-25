@@ -40,6 +40,22 @@ RoomiePantry is a collaborative grocery tracking and kitchen management app buil
 5. Push to the branch: `git push origin feature/cool-feature`
 6. Open a Pull Request.
 
+## Contributing
+
+1. Create a feature branch:
+   `git checkout -b feature/feature-name`
+
+2. Make and test your changes.
+
+3. Commit your changes:
+   `git commit -m "feat: description of change"`
+
+4. Push your branch:
+   `git push origin feature/feature-name`
+
+5. Open a Pull Request for another team member to review.
+
+
 ## Testing
 Run the test suite using `npm`:
 
