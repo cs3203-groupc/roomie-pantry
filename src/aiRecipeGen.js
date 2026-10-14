@@ -101,7 +101,15 @@ class AIRecipeGen {
     if (isStub || options.sync) {
       return {
         title: 'Quick Pantry Meal',
-        ingredients: Array.from(items)
+        ingredients: Array.from(items),
+        instructions: [
+          `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+          `Heat a skillet or pan over medium heat with a light coat of oil.`,
+          `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
+          `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
+        ],
+        prepTime: '10-15 mins',
+        servings: 1
       };
     }
 
@@ -173,7 +181,15 @@ class AIRecipeGen {
     if (isStub) {
       return {
         title: 'Quick Pantry Meal',
-        ingredients: Array.from(items)
+        ingredients: Array.from(items),
+        instructions: [
+          `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+          `Heat a skillet or pan over medium heat with a light coat of oil.`,
+          `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
+          `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
+        ],
+        prepTime: '10-15 mins',
+        servings: 1
       };
     }
 
@@ -181,7 +197,20 @@ class AIRecipeGen {
       return await this.client.generate(items, options);
     }
 
-    const systemPrompt = `You are a culinary AI assistant for RoomiePantry. Generate a recipe strictly using only the following available pantry items: ${items.join(', ')}. Return ONLY a JSON object with this exact shape: {"title": "Recipe Title", "ingredients": ["item1", "item2"]}. Do not include markdown backticks or commentary.`;
+    const systemPrompt = `You are an expert chef assistant for RoomiePantry. Generate a complete, practical, delicious recipe strictly using only the following available pantry items: ${items.join(', ')}.
+You MUST return ONLY a valid JSON object with this exact shape:
+{
+  "title": "Recipe Title",
+  "ingredients": ["ingredient 1", "ingredient 2"],
+  "instructions": [
+    "Step 1: Description of preparation and chopping",
+    "Step 2: Description of cooking or heating",
+    "Step 3: Description of finishing and serving"
+  ],
+  "prepTime": "15 mins",
+  "servings": 1
+}
+Do not include markdown backticks or commentary outside the JSON.`;
 
     try {
       let rawText = '';
@@ -201,12 +230,39 @@ class AIRecipeGen {
       }
 
       const parsed = this._extractJson(rawText);
-      if (parsed && typeof parsed.title === 'string' && Array.isArray(parsed.ingredients)) {
-        return parsed;
+      const title = (parsed && typeof parsed.title === 'string' && parsed.title.trim())
+        ? parsed.title.trim()
+        : 'Quick Pantry Meal';
+
+      const ingredients = (parsed && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0)
+        ? parsed.ingredients
+        : Array.from(items);
+
+      let instructions = [];
+      if (parsed && Array.isArray(parsed.instructions) && parsed.instructions.length > 0) {
+        instructions = parsed.instructions.map((step) => String(step).trim()).filter(Boolean);
+      } else if (parsed && typeof parsed.instructions === 'string' && parsed.instructions.trim()) {
+        instructions = parsed.instructions.split(/\r?\n|\d+\.\s+/).map((s) => s.trim()).filter(Boolean);
       }
+
+      if (instructions.length === 0) {
+        instructions = [
+          `Gather and prepare: ${ingredients.join(', ')}.`,
+          `Heat a skillet or pan over medium heat with cooking oil or water.`,
+          `Add ${ingredients.join(' and ')} to the pan and cook for 5 to 8 minutes until thoroughly cooked.`,
+          `Season to taste with salt and pepper, then transfer to a plate and serve immediately.`
+        ];
+      }
+
+      const prepTime = (parsed && typeof parsed.prepTime === 'string') ? parsed.prepTime : '10-15 mins';
+      const servings = (parsed && (typeof parsed.servings === 'number' || typeof parsed.servings === 'string')) ? parsed.servings : 1;
+
       return {
-        title: (parsed && typeof parsed.title === 'string') ? parsed.title : 'Quick Pantry Meal',
-        ingredients: (parsed && Array.isArray(parsed.ingredients)) ? parsed.ingredients : Array.from(items)
+        title,
+        ingredients,
+        instructions,
+        prepTime,
+        servings
       };
     } catch (_err) {
       if (options.strict) {
@@ -214,7 +270,15 @@ class AIRecipeGen {
       }
       return {
         title: 'Quick Pantry Meal',
-        ingredients: Array.from(items)
+        ingredients: Array.from(items),
+        instructions: [
+          `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+          `Heat a skillet or pan over medium heat with a light coat of oil.`,
+          `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
+          `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
+        ],
+        prepTime: '10-15 mins',
+        servings: 1
       };
     }
   }

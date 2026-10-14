@@ -308,14 +308,72 @@
       font-size: 0.8rem;
     }
 
+    .recipe-meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+    }
+
+    .meta-tag {
+      background: rgba(99, 102, 241, 0.15);
+      color: #c7d2fe;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .instructions-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .instruction-step {
+      display: flex;
+      gap: 0.75rem;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: bold;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-text {
+      font-size: 0.9rem;
+      color: #e2e8f0;
+      line-height: 1.45;
+    }
+
     .ai-chat-response {
       background: #0f172a;
       border-left: 3px solid var(--accent);
-      padding: 0.75rem;
+      padding: 0.85rem;
       border-radius: 0 0.5rem 0.5rem 0;
       font-size: 0.9rem;
       color: #e2e8f0;
-      white-space: pre-wrap;
+      line-height: 1.6;
     }
 
     .grocery-item-row {
@@ -451,9 +509,26 @@
       <!-- AI Result Box -->
       <div id="aiResultContainer" style="display: none;">
         <div class="recipe-display" id="aiRecipeBox">
-          <div class="recipe-title" id="recipeTitle">Recipe Title</div>
-          <label>Ingredients Used:</label>
-          <div class="ingredient-chips" id="recipeIngredients"></div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <div class="recipe-title" id="recipeTitle">Recipe Title</div>
+              <div class="recipe-meta-bar" style="margin-top: 0.4rem;">
+                <span class="meta-tag" id="recipeTime">⏱️ 15 mins</span>
+                <span class="meta-tag" id="recipeServings">👤 1 serving</span>
+                <span class="meta-tag" style="background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.3);">🍳 Zero Waste</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block; color: var(--text-muted);">Ingredients Needed:</label>
+            <div class="ingredient-chips" id="recipeIngredients"></div>
+          </div>
+
+          <div>
+            <label style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.35rem; display: block; color: var(--text-muted);">Step-by-Step Cooking Instructions:</label>
+            <div class="instructions-container" id="recipeInstructions"></div>
+          </div>
         </div>
         <div class="ai-chat-response" id="aiTextBox" style="display: none;"></div>
       </div>
@@ -805,14 +880,47 @@
       document.getElementById('aiTextBox').style.display = 'none';
 
       document.getElementById('recipeTitle').textContent = recipe.title || 'Quick Pantry Meal';
+      document.getElementById('recipeTime').textContent = `⏱️ ${recipe.prepTime || '15 mins'}`;
+      document.getElementById('recipeServings').textContent = `👤 ${recipe.servings || 1} serving(s)`;
+
+      // Ingredients chips
       const chipContainer = document.getElementById('recipeIngredients');
       chipContainer.innerHTML = '';
-
       (recipe.ingredients || []).forEach(ing => {
         const span = document.createElement('span');
         span.className = 'chip';
         span.textContent = ing;
         chipContainer.appendChild(span);
+      });
+
+      // Instructions steps
+      const instructionsContainer = document.getElementById('recipeInstructions');
+      instructionsContainer.innerHTML = '';
+
+      let steps = [];
+      if (Array.isArray(recipe.instructions) && recipe.instructions.length > 0) {
+        steps = recipe.instructions;
+      } else if (typeof recipe.instructions === 'string' && recipe.instructions.trim()) {
+        steps = recipe.instructions.split(/\r?\n|\d+\.\s+/).filter(Boolean);
+      }
+
+      if (steps.length === 0) {
+        steps = [
+          `Gather all ingredients: ${(recipe.ingredients || []).join(', ')}.`,
+          `Heat skillet or saucepan over medium heat with a splash of oil.`,
+          `Cook and combine ingredients for 5 to 7 minutes until hot and well-blended.`,
+          `Plate, season to taste, and enjoy your meal!`
+        ];
+      }
+
+      steps.forEach((step, idx) => {
+        const row = document.createElement('div');
+        row.className = 'instruction-step';
+        row.innerHTML = `
+          <div class="step-num">${idx + 1}</div>
+          <div class="step-text">${escapeHtml(step.replace(/^\d+[\.\)]\s*/, ''))}</div>
+        `;
+        instructionsContainer.appendChild(row);
       });
     }
 
@@ -821,7 +929,16 @@
       document.getElementById('aiRecipeBox').style.display = 'none';
       const box = document.getElementById('aiTextBox');
       box.style.display = 'block';
-      box.textContent = text;
+      
+      // Simple markdown formatter for chef queries
+      let html = escapeHtml(text)
+        .replace(/^### (.*$)/gim, '<h3 style="font-weight: bold; margin-top: 0.8rem; margin-bottom: 0.3rem; color: #a5b4fc;">$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2 style="font-weight: bold; margin-top: 1rem; margin-bottom: 0.4rem; color: #818cf8;">$1</h2>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff;">$1</strong>')
+        .replace(/^\* (.*$)/gim, '<li style="margin-left: 1.25rem;">$1</li>')
+        .replace(/\n\n/g, '<br/><br/>');
+
+      box.innerHTML = html;
     }
 
     function escapeHtml(str) {

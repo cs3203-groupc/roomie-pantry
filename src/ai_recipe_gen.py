@@ -72,7 +72,15 @@ class AIRecipeGen:
             # Stub response returning recipe name and ingredients used
             return {
                 "title": "Quick Pantry Meal",
-                "ingredients": list(items)
+                "ingredients": list(items),
+                "instructions": [
+                    f"Prepare and chop {', '.join(items[:2])} into bite-sized pieces.",
+                    "Heat a skillet or pan over medium heat with a light coat of oil.",
+                    f"Add {', '.join(items)} and sauté for 5 to 7 minutes until tender and hot.",
+                    "Season with salt and pepper to taste, transfer to a plate, and serve warm."
+                ],
+                "prepTime": "10-15 mins",
+                "servings": 1
             }
 
         try:
@@ -80,24 +88,54 @@ class AIRecipeGen:
                 return self.client.generate(items)
 
             prompt = (
-                f"You are a culinary AI assistant for RoomiePantry. "
-                f"Generate a recipe strictly using only the following available pantry items: {', '.join(items)}. "
-                f"Return ONLY a JSON object with this exact shape: {{\"title\": \"Recipe Title\", \"ingredients\": [\"item1\", \"item2\"]}}. "
+                f"You are an expert chef assistant for RoomiePantry. "
+                f"Generate a complete, practical, delicious recipe strictly using only the following available pantry items: {', '.join(items)}. "
+                f"Return ONLY a valid JSON object with this exact shape: "
+                f"{{\"title\": \"Recipe Title\", \"ingredients\": [\"ingredient 1\", \"ingredient 2\"], \"instructions\": [\"Step 1: Description\", \"Step 2: Description\"], \"prepTime\": \"15 mins\", \"servings\": 1}}. "
                 f"Do not include markdown backticks or commentary."
             )
 
             raw_text = self._call_gemini(prompt)
             parsed = self._extract_json(raw_text)
-            if isinstance(parsed, dict) and "title" in parsed and "ingredients" in parsed:
-                return parsed
+            title = parsed.get("title", "Quick Pantry Meal") if isinstance(parsed, dict) else "Quick Pantry Meal"
+            ingredients = parsed.get("ingredients", list(items)) if isinstance(parsed, dict) and isinstance(parsed.get("ingredients"), list) else list(items)
+
+            instructions = []
+            if isinstance(parsed, dict) and isinstance(parsed.get("instructions"), list):
+                instructions = [str(s).strip() for s in parsed.get("instructions") if str(s).strip()]
+            elif isinstance(parsed, dict) and isinstance(parsed.get("instructions"), str):
+                instructions = [s.strip() for s in parsed.get("instructions").split("\n") if s.strip()]
+
+            if not instructions:
+                instructions = [
+                    f"Gather and prepare: {', '.join(ingredients)}.",
+                    "Heat a skillet or pan over medium heat with cooking oil or water.",
+                    f"Add {', '.join(ingredients)} to the pan and cook for 5 to 8 minutes until thoroughly cooked.",
+                    "Season to taste with salt and pepper, then transfer to a plate and serve immediately."
+                ]
+
+            prep_time = parsed.get("prepTime", "10-15 mins") if isinstance(parsed, dict) else "10-15 mins"
+            servings = parsed.get("servings", 1) if isinstance(parsed, dict) else 1
+
             return {
-                "title": parsed.get("title", "Quick Pantry Meal") if isinstance(parsed, dict) else "Quick Pantry Meal",
-                "ingredients": parsed.get("ingredients", list(items)) if isinstance(parsed, dict) and isinstance(parsed.get("ingredients"), list) else list(items)
+                "title": title,
+                "ingredients": ingredients,
+                "instructions": instructions,
+                "prepTime": prep_time,
+                "servings": servings
             }
         except Exception:
             return {
                 "title": "Quick Pantry Meal",
-                "ingredients": list(items)
+                "ingredients": list(items),
+                "instructions": [
+                    f"Prepare and chop {', '.join(items[:2])} into bite-sized pieces.",
+                    "Heat a skillet or pan over medium heat with a light coat of oil.",
+                    f"Add {', '.join(items)} and sauté for 5 to 7 minutes until tender and hot.",
+                    "Season with salt and pepper to taste, transfer to a plate, and serve warm."
+                ],
+                "prepTime": "10-15 mins",
+                "servings": 1
             }
 
     def _call_gemini(self, prompt: str) -> str:
