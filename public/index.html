@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoomiePantry - Collaborative Kitchen & AI Recipe Hub</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 1.5rem;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #10b981, #6366f1);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.75rem;
+      font-weight: bold;
+      font-size: 1.25rem;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .status-badge {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+    }
+
+    .btn-accent:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: #334155;
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-sm {
+      padding: 0.25rem 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    input, select, textarea {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--primary);
+    }
+
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .item-card {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      padding: 0.6rem 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .item-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .item-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .item-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-red {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid var(--danger);
+    }
+
+    .badge-yellow {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+      border: 1px solid var(--warning);
+    }
+
+    .badge-green {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid var(--success);
+    }
+
+    .alerts-summary {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .alert-pill {
+      flex: 1;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      text-align: center;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+    }
+
+    .alert-pill .count {
+      font-size: 1.25rem;
+      font-weight: bold;
+      display: block;
+    }
+
+    .alert-pill .label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .recipe-display {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .recipe-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #a78bfa;
+    }
+
+    .ingredient-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .chip {
+      background: #334155;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.35rem;
+      font-size: 0.8rem;
+    }
+
+    .ai-chat-response {
+      background: #0f172a;
+      border-left: 3px solid var(--accent);
+      padding: 0.75rem;
+      border-radius: 0 0.5rem 0.5rem 0;
+      font-size: 0.9rem;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+    }
+
+    .grocery-item-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+    }
+
+    .grocery-item-row.checked span {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .tab-btn.active {
+      background: #334155;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .spinner {
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top: 2px solid #fff;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-group">
+      <div class="logo-badge">RP</div>
+      <div>
+        <h1>RoomiePantry</h1>
+        <div class="subtitle">Shared Grocery & Kitchen Management with AI Recipe Engine</div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="status-badge">
+        <div class="dot"></div>
+        <span id="syncStatus">Server Live</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="refreshAll()">🔄 Refresh</button>
+    </div>
+  </header>
+
+  <div class="grid-container">
+    <!-- AI Recipe Generator Card -->
+    <div class="card" style="grid-column: 1 / -1; border: 1px solid #6366f1;">
+      <div class="card-header">
+        <div class="card-title">
+          <span>✨</span>
+          <span>AI Recipe Generator (AIRecipeGen)</span>
+        </div>
+        <span class="badge" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid #6366f1;">Powered by Gemini Studio</span>
+      </div>
+      
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchAITab('pantryTab')">Auto-Gen from Pantry</button>
+        <button class="tab-btn" onclick="switchAITab('customTab')">Custom Ingredients</button>
+        <button class="tab-btn" onclick="switchAITab('chatTab')">Ask AI Chef</button>
+      </div>
+
+      <!-- Tab 1: Pantry Auto-Gen -->
+      <div id="pantryTab" class="ai-tab-content">
+        <p class="subtitle" style="margin-bottom: 0.75rem;">
+          Generate a tailored recipe strictly utilizing ingredients available right now in your shared and private pantry.
+        </p>
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
+          <button class="btn btn-accent" id="btnGenPantry" onclick="generateFromPantry()">
+            <span id="pantrySpinner" class="spinner" style="display: none;"></span>
+            <span>✨ Generate Recipe from Current Pantry</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Custom Ingredients -->
+      <div id="customTab" class="ai-tab-content" style="display: none;">
+        <p class="subtitle" style="margin-bottom: 0.75rem;">
+          Specify a custom ingredient list to generate an AI recipe strictly using those items.
+        </p>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <input type="text" id="customInput" placeholder="e.g. tofu, spinach, garlic, soy sauce" style="flex: 1;" />
+          <button class="btn btn-accent" id="btnGenCustom" onclick="generateFromCustom()">
+            <span id="customSpinner" class="spinner" style="display: none;"></span>
+            <span>Generate</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab 3: Ask AI Chef -->
+      <div id="chatTab" class="ai-tab-content" style="display: none;">
+        <p class="subtitle" style="margin-bottom: 0.75rem;">
+          Ask any culinary question, substitute recommendations, or cooking technique queries.
+        </p>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <input type="text" id="promptInput" placeholder="e.g. What can I cook with eggs and spinach in under 10 minutes?" style="flex: 1;" />
+          <button class="btn btn-accent" id="btnQuery" onclick="queryAIChef()">
+            <span id="querySpinner" class="spinner" style="display: none;"></span>
+            <span>Ask AI</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Result Box -->
+      <div id="aiResultContainer" style="display: none;">
+        <div class="recipe-display" id="aiRecipeBox">
+          <div class="recipe-title" id="recipeTitle">Recipe Title</div>
+          <label>Ingredients Used:</label>
+          <div class="ingredient-chips" id="recipeIngredients"></div>
+        </div>
+        <div class="ai-chat-response" id="aiTextBox" style="display: none;"></div>
+      </div>
+    </div>
+
+    <!-- Expiration & Cook Now Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>⏱️</span>
+          <span>Expiration Alerts & Cook Now</span>
+        </div>
+      </div>
+
+      <div class="alerts-summary">
+        <div class="alert-pill">
+          <span class="count" id="countRed" style="color: var(--danger);">0</span>
+          <span class="label">Needs Attention</span>
+        </div>
+        <div class="alert-pill">
+          <span class="count" id="countYellow" style="color: var(--warning);">0</span>
+          <span class="label">Expiring Soon</span>
+        </div>
+        <div class="alert-pill">
+          <span class="count" id="countGreen" style="color: var(--success);">0</span>
+          <span class="label">Fresh</span>
+        </div>
+      </div>
+
+      <label>Cook-Now Recommendations (Prioritizing Urgency):</label>
+      <div id="cookNowList" class="item-list"></div>
+    </div>
+
+    <!-- Pantry Inventory Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🥫</span>
+          <span>Pantry Inventory</span>
+        </div>
+        <span class="subtitle" id="pantryCount">0 items</span>
+      </div>
+
+      <!-- Add Pantry Item Form -->
+      <form id="addPantryForm" onsubmit="addPantryItem(event)" style="display: flex; flex-direction: column; gap: 0.6rem;">
+        <div style="display: flex; gap: 0.5rem;">
+          <div class="form-group" style="flex: 2;">
+            <label>Item Name</label>
+            <input type="text" id="pantryName" placeholder="e.g. Milk, Eggs, Rice" required />
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Qty</label>
+            <input type="number" id="pantryQty" value="1" min="1" required />
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <div class="form-group" style="flex: 1.5;">
+            <label>Expires On</label>
+            <input type="date" id="pantryExpiry" required />
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Owner</label>
+            <input type="text" id="pantryOwner" placeholder="Alex (optional)" />
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+            <input type="checkbox" id="pantryIsShared" checked />
+            <span>Shared with household</span>
+          </label>
+          <button type="submit" class="btn btn-sm">Add Item</button>
+        </div>
+      </form>
+
+      <ul id="pantryList" class="item-list"></ul>
+    </div>
+
+    <!-- Shared Grocery List Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🛒</span>
+          <span>Shared Grocery List</span>
+        </div>
+        <span class="subtitle" id="groceryCount">0 items</span>
+      </div>
+
+      <!-- Add Grocery Form -->
+      <form id="addGroceryForm" onsubmit="addGroceryItem(event)" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+        <div class="form-group" style="flex: 2;">
+          <label>Item</label>
+          <input type="text" id="groceryName" placeholder="e.g. Coffee Beans" required />
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Requested By</label>
+          <input type="text" id="groceryOwner" placeholder="Jamie" />
+        </div>
+        <button type="submit" class="btn btn-sm" style="margin-bottom: 1px;">Add</button>
+      </form>
+
+      <div id="groceryList" class="item-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize default date to 5 days ahead
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 5);
+    document.getElementById('pantryExpiry').value = defaultDate.toISOString().split('T')[0];
+
+    async function fetchPantry() {
+      try {
+        const res = await fetch('/pantry/items');
+        const data = await res.json();
+        const list = document.getElementById('pantryList');
+        document.getElementById('pantryCount').textContent = `${data.items.length} items`;
+        list.innerHTML = '';
+
+        if (data.items.length === 0) {
+          list.innerHTML = '<li class="subtitle" style="text-align: center; padding: 1rem;">Pantry is empty. Add items above!</li>';
+          return;
+        }
+
+        data.items.forEach(item => {
+          const li = document.createElement('li');
+          li.className = 'item-card';
+          li.innerHTML = `
+            <div class="item-info">
+              <span class="item-name">${escapeHtml(item.name)} (x${item.quantity})</span>
+              <span class="item-meta">
+                ${item.isShared ? 'Shared' : `Private (${escapeHtml(item.owner || 'Personal')})`} • Expires ${item.expiresOn}
+              </span>
+            </div>
+          `;
+          list.appendChild(li);
+        });
+      } catch (e) {
+        console.error('Error fetching pantry:', e);
+      }
+    }
+
+    async function fetchAlerts() {
+      try {
+        const res = await fetch('/pantry/alerts');
+        const data = await res.json();
+        document.getElementById('countRed').textContent = data.summary.red || 0;
+        document.getElementById('countYellow').textContent = data.summary.yellow || 0;
+        document.getElementById('countGreen').textContent = data.summary.green || 0;
+      } catch (e) {
+        console.error('Error fetching alerts:', e);
+      }
+    }
+
+    async function fetchCookNow() {
+      try {
+        const res = await fetch('/cook-now');
+        const data = await res.json();
+        const list = document.getElementById('cookNowList');
+        list.innerHTML = '';
+
+        if (!data.recommendations || data.recommendations.length === 0) {
+          list.innerHTML = '<div class="subtitle" style="text-align:center; padding: 1rem;">No urgent recommendations right now.</div>';
+          return;
+        }
+
+        data.recommendations.forEach(rec => {
+          const div = document.createElement('div');
+          div.className = 'item-card';
+          div.innerHTML = `
+            <div class="item-info">
+              <span class="item-name">${escapeHtml(rec.recipeName)}</span>
+              <span class="item-meta">${escapeHtml(rec.reason)}</span>
+            </div>
+            <span class="badge badge-yellow">Cook Now</span>
+          `;
+          list.appendChild(div);
+        });
+      } catch (e) {
+        console.error('Error fetching cook now:', e);
+      }
+    }
+
+    async function fetchGrocery() {
+      try {
+        const res = await fetch('/grocery/items');
+        const data = await res.json();
+        const list = document.getElementById('groceryList');
+        document.getElementById('groceryCount').textContent = `${data.items.length} items`;
+        list.innerHTML = '';
+
+        if (data.items.length === 0) {
+          list.innerHTML = '<div class="subtitle" style="text-align: center; padding: 1rem;">Grocery list is clear.</div>';
+          return;
+        }
+
+        data.items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = `grocery-item-row ${item.checked ? 'checked' : ''}`;
+          div.innerHTML = `
+            <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleGrocery(${item.id}, this.checked)" />
+            <div style="flex: 1;">
+              <span>${escapeHtml(item.name)} (x${item.quantity})</span>
+              <div class="subtitle">Requested by ${escapeHtml(item.requestedBy || 'Roommate')}</div>
+            </div>
+          `;
+          list.appendChild(div);
+        });
+      } catch (e) {
+        console.error('Error fetching grocery list:', e);
+      }
+    }
+
+    async function addPantryItem(e) {
+      e.preventDefault();
+      const name = document.getElementById('pantryName').value.trim();
+      const quantity = parseInt(document.getElementById('pantryQty').value) || 1;
+      const expiresOn = document.getElementById('pantryExpiry').value;
+      const owner = document.getElementById('pantryOwner').value.trim() || null;
+      const isShared = document.getElementById('pantryIsShared').checked;
+
+      if (!name || !expiresOn) return;
+
+      await fetch('/pantry/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, quantity, expiresOn, owner, isShared })
+      });
+
+      document.getElementById('pantryName').value = '';
+      refreshAll();
+    }
+
+    async function addGroceryItem(e) {
+      e.preventDefault();
+      const name = document.getElementById('groceryName').value.trim();
+      const requestedBy = document.getElementById('groceryOwner').value.trim() || null;
+
+      if (!name) return;
+
+      await fetch('/grocery/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, requestedBy })
+      });
+
+      document.getElementById('groceryName').value = '';
+      fetchGrocery();
+    }
+
+    async function toggleGrocery(id, checked) {
+      await fetch(`/grocery/items/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checked })
+      });
+      fetchGrocery();
+    }
+
+    // AI Recipe Gen tabs
+    function switchAITab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.ai-tab-content').forEach(c => c.style.display = 'none');
+
+      if (tabId === 'pantryTab') document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      if (tabId === 'customTab') document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      if (tabId === 'chatTab') document.querySelectorAll('.tab-btn')[2].classList.add('active');
+
+      document.getElementById(tabId).style.display = 'block';
+    }
+
+    async function generateFromPantry() {
+      const spinner = document.getElementById('pantrySpinner');
+      spinner.style.display = 'inline-block';
+      try {
+        const res = await fetch('/pantry/ai-recipe');
+        const data = await res.json();
+        if (data.error) {
+          alert('Error: ' + data.error);
+          return;
+        }
+        showAIRecipe(data);
+      } catch (e) {
+        alert('Failed to connect to AI recipe engine');
+      } finally {
+        spinner.style.display = 'none';
+      }
+    }
+
+    async function generateFromCustom() {
+      const input = document.getElementById('customInput').value.trim();
+      if (!input) {
+        alert('Please enter at least one ingredient');
+        return;
+      }
+      const items = input.split(',').map(s => s.trim()).filter(Boolean);
+      const spinner = document.getElementById('customSpinner');
+      spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/ai/recipe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert('Error: ' + data.error);
+          return;
+        }
+        showAIRecipe(data);
+      } catch (e) {
+        alert('Failed to generate recipe');
+      } finally {
+        spinner.style.display = 'none';
+      }
+    }
+
+    async function queryAIChef() {
+      const prompt = document.getElementById('promptInput').value.trim();
+      if (!prompt) {
+        alert('Please enter a query or question');
+        return;
+      }
+      const spinner = document.getElementById('querySpinner');
+      spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/ai/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert('Error: ' + data.error);
+          return;
+        }
+        showAIText(data.response);
+      } catch (e) {
+        alert('Failed to query AI');
+      } finally {
+        spinner.style.display = 'none';
+      }
+    }
+
+    function showAIRecipe(recipe) {
+      document.getElementById('aiResultContainer').style.display = 'block';
+      document.getElementById('aiRecipeBox').style.display = 'flex';
+      document.getElementById('aiTextBox').style.display = 'none';
+
+      document.getElementById('recipeTitle').textContent = recipe.title || 'Quick Pantry Meal';
+      const chipContainer = document.getElementById('recipeIngredients');
+      chipContainer.innerHTML = '';
+
+      (recipe.ingredients || []).forEach(ing => {
+        const span = document.createElement('span');
+        span.className = 'chip';
+        span.textContent = ing;
+        chipContainer.appendChild(span);
+      });
+    }
+
+    function showAIText(text) {
+      document.getElementById('aiResultContainer').style.display = 'block';
+      document.getElementById('aiRecipeBox').style.display = 'none';
+      const box = document.getElementById('aiTextBox');
+      box.style.display = 'block';
+      box.textContent = text;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, function(m) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[m];
+      });
+    }
+
+    function refreshAll() {
+      fetchPantry();
+      fetchAlerts();
+      fetchCookNow();
+      fetchGrocery();
+    }
+
+    // Initial load
+    refreshAll();
+  </script>
+</body>
+</html>

@@ -67,3 +67,13 @@ test('supports live grocery sync through shared list and snapshot endpoint', asy
   assert.equal(Array.isArray(sync.body.groceryList), true);
   assert.equal(Array.isArray(sync.body.notifications), true);
 });
+
+test('serves web GUI at root endpoint', async () => {
+  const res = await request(app)
+    .get('/')
+    .expect('Content-Type', /html/)
+    .expect(200);
+  assert.equal(res.text.includes('RoomiePantry'), true);
+  assert.equal(res.text.includes('AIRecipeGen'), true);
+});
+

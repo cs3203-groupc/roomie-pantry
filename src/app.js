@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const { PantryStore } = require('./store');
 const { AIRecipeGen, aiRecipeGen } = require('./aiRecipeGen');
@@ -6,6 +7,7 @@ const app = express();
 const store = new PantryStore();
 
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
