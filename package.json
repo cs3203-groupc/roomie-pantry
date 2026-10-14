@@ -1,0 +1,17 @@
+{
+  "name": "roomie-pantry",
+  "version": "1.0.0",
+  "description": "RoomiePantry collaborative grocery tracking and kitchen management API",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.1"
+  }
+}
