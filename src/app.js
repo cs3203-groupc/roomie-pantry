@@ -1,5 +1,6 @@
 const express = require('express');
 const { PantryStore } = require('./store');
+const { AIRecipeGen, aiRecipeGen } = require('./aiRecipeGen');
 
 const app = express();
 const store = new PantryStore();
@@ -66,7 +67,47 @@ app.get('/sync', (_req, res) => {
   res.json(store.getSyncSnapshot());
 });
 
+app.get('/pantry/ai-recipe', async (_req, res) => {
+  try {
+    const recipe = await store.generateAIRecipeAsync();
+    return res.json(recipe);
+  } catch (err) {
+    if (err.name === 'TypeError' || err.name === 'ValueError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/ai/recipe', async (req, res) => {
+  const { items } = req.body || {};
+  try {
+    const recipe = await aiRecipeGen.generate(items);
+    return res.json(recipe);
+  } catch (err) {
+    if (err.name === 'TypeError' || err.name === 'ValueError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/ai/query', async (req, res) => {
+  const { prompt } = req.body || {};
+  try {
+    const response = await aiRecipeGen.query(prompt);
+    return res.json({ response });
+  } catch (err) {
+    if (err.name === 'TypeError' || err.name === 'ValueError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = {
   app,
-  store
+  store,
+  aiRecipeGen,
+  AIRecipeGen
 };

@@ -8,6 +8,7 @@ RoomiePantry is a collaborative grocery tracking and kitchen management app buil
 * Expiration Alerts: Color-coded dashboard (Green/Yellow/Red) with push notifications for expiring food.
 * "Cook Now" Engine: Recommends minimal-cleanup, single-serving meals prioritizing ingredients about to expire.
 * Live Grocery Sync: Cloud-synced communal shopping lists.
+* AI Recipe Generator (`AIRecipeGen`): Generates recipes strictly from available pantry ingredients using Google Gemini Studio / AI models, with `/ai/recipe`, `/ai/query`, and `/pantry/ai-recipe` endpoints.
 
 ### Setup
 

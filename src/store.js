@@ -1,3 +1,5 @@
+const { aiRecipeGen } = require('./aiRecipeGen');
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 class PantryStore {
@@ -162,6 +164,16 @@ class PantryStore {
 
   bumpVersion() {
     this.version += 1;
+  }
+
+  generateAIRecipe(customItems = null) {
+    const items = customItems || this.items.map((i) => i.name);
+    return aiRecipeGen.generate(items, { sync: true });
+  }
+
+  async generateAIRecipeAsync(customItems = null) {
+    const items = customItems || this.items.map((i) => i.name);
+    return aiRecipeGen.generateAsync(items);
   }
 }
 
