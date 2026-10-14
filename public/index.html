@@ -561,7 +561,16 @@
         </div>
       </div>
 
-      <label>Cook-Now Recommendations (Prioritizing Urgency):</label>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; flex-wrap: wrap; gap: 0.5rem;">
+        <label style="font-weight: 600; font-size: 0.8rem; color: var(--text-muted);">Cook-Now Priority Items:</label>
+        <div style="display: flex; gap: 0.4rem; align-items: center;">
+          <button class="btn btn-secondary btn-sm" onclick="toggleSelectAllExpiring()" id="btnSelectAll">Select All</button>
+          <button id="btnCookSelected" class="btn btn-accent btn-sm" style="display: none;" onclick="cookSelectedItems()">
+            🍳 Cook Selected (<span id="selectedCount">0</span>)
+          </button>
+        </div>
+      </div>
+
       <div id="cookNowList" class="item-list"></div>
     </div>
 
@@ -572,7 +581,12 @@
           <span>🥫</span>
           <span>Pantry Inventory</span>
         </div>
-        <span class="subtitle" id="pantryCount">0 items</span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button id="btnPantryCookSelected" class="btn btn-accent btn-sm" style="display: none;" onclick="cookSelectedItems()">
+            🍳 Cook (<span class="selected-count-badge">0</span>)
+          </button>
+          <span class="subtitle" id="pantryCount">0 items</span>
+        </div>
       </div>
 
       <!-- Add Pantry Item Form -->
@@ -656,16 +670,23 @@
         }
 
         data.items.forEach(item => {
+          const isChecked = selectedIngredients.has(item.name);
           const li = document.createElement('li');
           li.className = 'item-card';
           li.innerHTML = `
-            <div class="item-info">
-              <span class="item-name">${escapeHtml(item.name)} (x${item.quantity})</span>
-              <span class="item-meta">
-                ${item.isShared ? 'Shared' : `Private (${escapeHtml(item.owner || 'Personal')})`} • Expires ${item.expiresOn}
-              </span>
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex: 1;">
+              <input type="checkbox" class="ingredient-cb" value="${escapeHtml(item.name)}" onchange="toggleIngredient('${escapeHtml(item.name)}', this.checked)" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent);" />
+              <div class="item-info">
+                <span class="item-name">${escapeHtml(item.name)} (x${item.quantity})</span>
+                <span class="item-meta">
+                  ${item.isShared ? 'Shared' : `Private (${escapeHtml(item.owner || 'Personal')})`} • Expires ${item.expiresOn}
+                </span>
+              </div>
             </div>
-            <button class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="deletePantryItem(${item.id})" title="Remove item">✕</button>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <button class="btn btn-accent btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="cookSingleItem('${escapeHtml(item.name)}')" title="Generate recipe for this item">🍳 Cook</button>
+              <button class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="deletePantryItem(${item.id})" title="Remove item">✕</button>
+            </div>
           `;
           list.appendChild(li);
         });
@@ -699,14 +720,21 @@
         }
 
         data.recommendations.forEach(rec => {
+          const ingredientName = rec.itemName || (rec.ingredientsUsed && rec.ingredientsUsed[0]) || rec.recipeName.replace(/^Quick\s+|\s+Bowl$/g, '');
+          const isChecked = selectedIngredients.has(ingredientName);
           const div = document.createElement('div');
           div.className = 'item-card';
           div.innerHTML = `
-            <div class="item-info">
-              <span class="item-name">${escapeHtml(rec.recipeName)}</span>
-              <span class="item-meta">${escapeHtml(rec.reason)}</span>
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex: 1;">
+              <input type="checkbox" class="cook-now-cb" value="${escapeHtml(ingredientName)}" onchange="toggleIngredient('${escapeHtml(ingredientName)}', this.checked)" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent);" />
+              <div class="item-info">
+                <span class="item-name">${escapeHtml(rec.recipeName)}</span>
+                <span class="item-meta">${escapeHtml(rec.reason)}</span>
+              </div>
             </div>
-            <span class="badge badge-yellow">Cook Now</span>
+            <button class="btn btn-accent btn-sm" onclick="cookSingleItem('${escapeHtml(ingredientName)}')">
+              🔥 Cook Now
+            </button>
           `;
           list.appendChild(div);
         });
@@ -801,6 +829,104 @@
       if (tabId === 'chatTab') document.querySelectorAll('.tab-btn')[2].classList.add('active');
 
       document.getElementById(tabId).style.display = 'block';
+    }
+
+    let selectedIngredients = new Set();
+
+    function toggleIngredient(name, checked) {
+      if (checked) {
+        selectedIngredients.add(name);
+      } else {
+        selectedIngredients.delete(name);
+      }
+      updateSelectionUI();
+    }
+
+    function toggleSelectAllExpiring() {
+      const cbs = document.querySelectorAll('.cook-now-cb');
+      const allChecked = Array.from(cbs).length > 0 && Array.from(cbs).every(cb => cb.checked);
+      cbs.forEach(cb => {
+        cb.checked = !allChecked;
+        if (!allChecked) {
+          selectedIngredients.add(cb.value);
+        } else {
+          selectedIngredients.delete(cb.value);
+        }
+      });
+      const btn = document.getElementById('btnSelectAll');
+      if (btn) btn.textContent = allChecked ? 'Select All' : 'Deselect All';
+      updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+      const count = selectedIngredients.size;
+      const cookBtn = document.getElementById('btnCookSelected');
+      const pantryCookBtn = document.getElementById('btnPantryCookSelected');
+      const countSpan = document.getElementById('selectedCount');
+      const badges = document.querySelectorAll('.selected-count-badge');
+
+      if (countSpan) countSpan.textContent = count;
+      badges.forEach(b => b.textContent = count);
+
+      if (count > 0) {
+        if (cookBtn) cookBtn.style.display = 'inline-flex';
+        if (pantryCookBtn) pantryCookBtn.style.display = 'inline-flex';
+      } else {
+        if (cookBtn) cookBtn.style.display = 'none';
+        if (pantryCookBtn) pantryCookBtn.style.display = 'none';
+        const selectAllBtn = document.getElementById('btnSelectAll');
+        if (selectAllBtn) selectAllBtn.textContent = 'Select All';
+      }
+
+      document.querySelectorAll('input.ingredient-cb, input.cook-now-cb').forEach(cb => {
+        cb.checked = selectedIngredients.has(cb.value);
+      });
+    }
+
+    function cookSingleItem(name) {
+      cookIngredients([name]);
+    }
+
+    function cookSelectedItems() {
+      const items = Array.from(selectedIngredients);
+      if (items.length === 0) {
+        alert('Please select at least one item to cook.');
+        return;
+      }
+      cookIngredients(items);
+    }
+
+    async function cookIngredients(items) {
+      if (!items || items.length === 0) return;
+
+      switchAITab('customTab');
+      document.getElementById('customInput').value = items.join(', ');
+
+      const aiCard = document.querySelector('.card[style*="6366f1"]');
+      if (aiCard) {
+        aiCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      const spinner = document.getElementById('customSpinner');
+      if (spinner) spinner.style.display = 'inline-block';
+
+      try {
+        const res = await fetch('/ai/recipe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert('Error: ' + data.error);
+          return;
+        }
+        showAIRecipe(data);
+      } catch (e) {
+        alert('Failed to connect to AI recipe engine');
+      } finally {
+        if (spinner) spinner.style.display = 'none';
+      }
     }
 
     async function generateFromPantry() {

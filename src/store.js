@@ -225,6 +225,8 @@ class PantryStore {
     const recommendations = byUrgency.slice(0, 3).map((item) => {
       const title = `Quick ${item.name} Bowl`;
       return {
+        itemId: item.id,
+        itemName: item.name,
         recipeName: title,
         ingredientsUsed: [item.name],
         servings: 1,

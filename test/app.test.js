@@ -46,6 +46,7 @@ test('recommends cook-now meals prioritizing expiring ingredients', async () => 
   const recipe = res.body.recommendations[0];
   assert.equal(recipe.servings, 1);
   assert.equal(recipe.cleanupLevel, 'minimal');
+  assert.equal(typeof recipe.itemName, 'string');
 });
 
 test('supports live grocery sync through shared list and snapshot endpoint', async () => {
