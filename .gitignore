@@ -2,3 +2,10 @@ node_modules/
 __pycache__/
 *.pyc
 .env
+data/*.sqlite
+data/*.db
+*.sqlite
+*.db
+serviceAccount*.json
+firebase-key*.json
+

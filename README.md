@@ -9,6 +9,7 @@ RoomiePantry is a collaborative grocery tracking and kitchen management app buil
 * "Cook Now" Engine: Recommends minimal-cleanup, single-serving meals prioritizing ingredients about to expire.
 * Live Grocery Sync: Cloud-synced communal shopping lists.
 * AI Recipe Generator (`AIRecipeGen`): Generates recipes strictly from available pantry ingredients using Google Gemini Studio / AI models, with `/ai/recipe`, `/ai/query`, and `/pantry/ai-recipe` endpoints.
+* Persistent Storage (SQLite & Firebase): Automatically persists all pantry items, grocery lists, alerts, and version state across server restarts using zero-config local SQLite (`data/pantry.sqlite`) or cloud Firebase Firestore.
 
 ### Setup
 

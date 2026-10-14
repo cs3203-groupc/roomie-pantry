@@ -27,6 +27,27 @@ app.get('/pantry/items', (_req, res) => {
   res.json({ items: store.listPantryItems() });
 });
 
+app.delete('/pantry/items/:id', (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'valid id required' });
+  }
+
+  const deleted = store.deletePantryItem(id);
+  if (!deleted) {
+    return res.status(404).json({ error: 'pantry item not found' });
+  }
+
+  return res.json({ success: true, id });
+});
+
+app.get('/system/storage', (_req, res) => {
+  res.json({
+    type: store.storage ? store.storage.type : 'memory',
+    isPersistent: Boolean(store.storage)
+  });
+});
+
 app.get('/pantry/alerts', (_req, res) => {
   res.json(store.getExpirationAlerts());
 });

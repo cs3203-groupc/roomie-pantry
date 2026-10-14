@@ -444,6 +444,9 @@
         <div class="dot"></div>
         <span id="syncStatus">Server Live</span>
       </div>
+      <div class="status-badge" style="background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.3);">
+        <span id="storageBadge">💾 SQLite Persistent</span>
+      </div>
       <button class="btn btn-secondary btn-sm" onclick="refreshAll()">🔄 Refresh</button>
     </div>
   </header>
@@ -662,6 +665,7 @@
                 ${item.isShared ? 'Shared' : `Private (${escapeHtml(item.owner || 'Personal')})`} • Expires ${item.expiresOn}
               </span>
             </div>
+            <button class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="deletePantryItem(${item.id})" title="Remove item">✕</button>
           `;
           list.appendChild(li);
         });
@@ -954,11 +958,39 @@
       });
     }
 
+    async function deletePantryItem(id) {
+      if (!confirm('Remove this item from the pantry?')) return;
+      try {
+        await fetch(`/pantry/items/${id}`, { method: 'DELETE' });
+        refreshAll();
+      } catch (e) {
+        console.error('Failed to delete item:', e);
+      }
+    }
+
+    async function fetchStorageInfo() {
+      try {
+        const res = await fetch('/system/storage');
+        const data = await res.json();
+        const badge = document.getElementById('storageBadge');
+        if (data.type === 'firebase') {
+          badge.textContent = '🔥 Firebase Firestore';
+          badge.parentElement.style.background = 'rgba(245, 158, 11, 0.15)';
+          badge.parentElement.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+        } else if (data.type === 'sqlite') {
+          badge.textContent = '💾 SQLite Persistent';
+        } else {
+          badge.textContent = '⚡ Memory';
+        }
+      } catch (_e) {}
+    }
+
     function refreshAll() {
       fetchPantry();
       fetchAlerts();
       fetchCookNow();
       fetchGrocery();
+      fetchStorageInfo();
     }
 
     // Initial load
