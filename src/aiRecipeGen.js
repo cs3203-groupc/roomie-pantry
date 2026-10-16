@@ -234,9 +234,24 @@ Do not include markdown backticks or commentary outside the JSON.`;
         ? parsed.title.trim()
         : 'Quick Pantry Meal';
 
-      const ingredients = (parsed && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0)
-        ? parsed.ingredients
-        : Array.from(items);
+      let ingredients = Array.from(items);
+      if (parsed && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
+        const pantryItems = Array.from(items).map((item) => String(item));
+        const matchedIngredients = [];
+        for (const candidate of parsed.ingredients) {
+          const candidateText = String(candidate).toLowerCase();
+          const matched = pantryItems.find((pantryItem) => {
+            const normalizedPantryItem = pantryItem.toLowerCase();
+            return candidateText === normalizedPantryItem || candidateText.includes(normalizedPantryItem);
+          });
+          if (matched && !matchedIngredients.includes(matched)) {
+            matchedIngredients.push(matched);
+          }
+        }
+        if (matchedIngredients.length > 0) {
+          ingredients = matchedIngredients;
+        }
+      }
 
       let instructions = [];
       if (parsed && Array.isArray(parsed.instructions) && parsed.instructions.length > 0) {

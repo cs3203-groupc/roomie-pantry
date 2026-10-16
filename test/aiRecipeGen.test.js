@@ -185,6 +185,29 @@ test('AIRecipeGen: extracts JSON from markdown-wrapped AI responses and text wit
   assert.deepEqual(recipe.ingredients, ['pasta', 'sauce']);
 });
 
+test('AIRecipeGen: normalizes AI ingredient quantities back to pantry item names', async () => {
+  const mockClient = {
+    models: {
+      async generateContent() {
+        return {
+          text: JSON.stringify({
+            title: 'Breakfast Bowl',
+            ingredients: ['1 cup oats', '2 tablespoons honey']
+          })
+        };
+      }
+    }
+  };
+
+  const gen = new AIRecipeGen({
+    apiKey: 'mock-key',
+    client: mockClient
+  });
+
+  const recipe = await gen.generate(['Oats', 'Honey']);
+  assert.deepEqual(recipe.ingredients, ['Oats', 'Honey']);
+});
+
 test('AIRecipeGen: graceful fallback when AI client throws error', async () => {
   const failingClient = {
     models: {
@@ -289,4 +312,3 @@ test('API endpoints: /ai/recipe and /ai/query', async () => {
   assert.equal(Array.isArray(pantryRecipeRes.body.ingredients), true);
   assert.equal(pantryRecipeRes.body.ingredients.includes('Chickpeas'), true);
 });
-
