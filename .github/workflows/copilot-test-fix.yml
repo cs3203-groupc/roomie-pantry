@@ -88,5 +88,4 @@ jobs:
           gh issue create \
             --repo "$REPOSITORY" \
             --title "$title" \
-            --body-file "$issue_body" \
-            --assignee 'copilot-swe-agent[bot]'
+            --body-file "$issue_body"
