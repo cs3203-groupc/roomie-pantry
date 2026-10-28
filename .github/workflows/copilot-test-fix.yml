@@ -1,0 +1,92 @@
+name: Copilot Test Failure Repair
+
+on:
+  workflow_run:
+    workflows: ["RoomiePantry CI"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  delegate-failure:
+    name: Delegate failed tests to Copilot
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event != 'pull_request' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install GitHub CLI
+        run: type gh >/dev/null
+
+      - name: Create a Copilot repair issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          title="Automated test failure: RoomiePantry CI run ${RUN_ID}"
+          existing_issue="$(gh issue list \
+            --repo "$REPOSITORY" \
+            --state open \
+            --search "\"$title\" in:title" \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [[ -n "$existing_issue" ]]; then
+            echo "Repair issue #${existing_issue} already exists; skipping duplicate."
+            exit 0
+          fi
+
+          failed_logs="$(mktemp)"
+          trap 'rm -f "$failed_logs"' EXIT
+          gh run view "$RUN_ID" \
+            --repo "$REPOSITORY" \
+            --log-failed >"$failed_logs" || true
+
+          # Keep the issue useful without making it unwieldy. GitHub masks configured
+          # secrets in Actions logs before they are returned by the run-log endpoint.
+          log_excerpt="$(tail -c 12000 "$failed_logs")"
+          if [[ -z "$log_excerpt" ]]; then
+            log_excerpt="The failed job did not expose a log excerpt. Inspect the linked run and its failed jobs."
+          fi
+
+          issue_body="$(mktemp)"
+          trap 'rm -f "$failed_logs" "$issue_body"' EXIT
+          cat >"$issue_body" <<EOF
+          ## Automated test failure
+
+          The test workflow failed on branch \`${BRANCH}\` at commit \`${SHA}\`.
+
+          - Workflow run: ${RUN_URL}
+          - Run ID: ${RUN_ID}
+
+          ## Copilot task
+
+          Investigate the failure, reproduce it locally, and make the smallest correct
+          code or test-environment fix. Run \`npm test\` before finishing. Open a pull
+          request targeting \`main\` with the fix and explain the root cause and
+          validation in the PR description. Do not change this repair workflow to
+          conceal or skip the failing test.
+
+          ## Failed log excerpt
+
+          \`\`\`text
+          ${log_excerpt}
+          \`\`\`
+          EOF
+
+          gh issue create \
+            --repo "$REPOSITORY" \
+            --title "$title" \
+            --body-file "$issue_body" \
+            --assignee 'copilot-swe-agent[bot]'

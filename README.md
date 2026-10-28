@@ -63,3 +63,13 @@ Run the test suite using `npm`:
 
 ```bash
 npm test
+```
+
+### Automated test failure repair
+
+If the `RoomiePantry CI` workflow fails on `main`, the
+`Copilot Test Failure Repair` workflow creates an issue containing the failed
+job logs and assigns it to GitHub Copilot's coding agent. Copilot investigates
+the failure, runs the test suite, and opens a pull request with the proposed
+fix. This requires Copilot coding agent access to be enabled for the
+repository.
