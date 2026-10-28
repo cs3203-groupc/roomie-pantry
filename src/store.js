@@ -73,6 +73,22 @@ class PantryStore {
     return this.items;
   }
 
+  getPantryStock() {
+    return this.items.map((item) => {
+      let status = 'in stock';
+      if (item.quantity <= 0) {
+        status = 'out of stock';
+      } else if (item.quantity <= 2) {
+        status = 'low stock';
+      }
+
+      return {
+        ...item,
+        status
+      };
+    });
+  }
+
   deletePantryItem(itemId) {
     const idx = this.items.findIndex((item) => item.id === itemId);
     if (idx === -1) return false;
