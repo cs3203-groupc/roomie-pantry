@@ -1,5 +1,6 @@
 const express = require('express');
 const { PantryStore } = require('./store');
+const { loginUser } = require('./auth');
 
 const app = express();
 const store = new PantryStore();
@@ -8,6 +9,26 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+app.post('/login', (req, res) => {
+  const { username, password } = req.body || {};
+
+  if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'username and password are required' });
+  }
+
+  const isValid = loginUser(username, password);
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  return res.status(200).json({
+    message: 'Login successful',
+    user: {
+      username
+    }
+  });
 });
 
 app.post('/pantry/items', (req, res) => {
