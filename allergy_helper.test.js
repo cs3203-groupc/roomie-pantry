@@ -1,29 +1,28 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
 const AllergyHelper = require('./allergy_helper');
 
-describe('AllergyHelper Add Tests', () => {
-    let helper;
+test('AllergyHelper: adds valid allergy strings', () => {
+    const helper = new AllergyHelper();
+    assert.equal(helper.add('Peanuts'), true);
+});
 
-    beforeEach(() => {
-        helper = new AllergyHelper();
-    });
+test('AllergyHelper: rejects invalid data types', () => {
+    const helper = new AllergyHelper();
+    assert.equal(helper.add(true), false);
+    assert.equal(helper.add(null), false);
+    assert.equal(helper.add(123), false);
+});
 
-    test('valid allergy string', () => {
-        expect(helper.add("Peanuts")).toBe(true);
-    });
+test('AllergyHelper: enforces minimum length', () => {
+    const helper = new AllergyHelper();
+    assert.equal(helper.add('A'), false);
+    assert.equal(helper.add('Pe'), true);
+});
 
-    test('invalid data types', () => {
-        expect(helper.add(true)).toBe(false);
-        expect(helper.add(null)).toBe(false);
-        expect(helper.add(123)).toBe(false);
-    });
-
-    test('boundary minimum characters', () => {
-        expect(helper.add("A")).toBe(false);
-        expect(helper.add("Pe")).toBe(true);
-    });
-
-    test('edge empty and whitespace', () => {
-        expect(helper.add("")).toBe(false);
-        expect(helper.add("   ")).toBe(false);
-    });
+test('AllergyHelper: rejects empty and whitespace-only strings', () => {
+    const helper = new AllergyHelper();
+    assert.equal(helper.add(''), false);
+    assert.equal(helper.add('   '), false);
 });
