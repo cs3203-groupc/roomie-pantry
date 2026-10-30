@@ -1,24 +1,23 @@
-const { pantryOwnerCheck } = require('../src/pantryOwner'); // adjust path if needed
+const test = require('node:test');
+const assert = require('node:assert/strict');
 
-describe('Pantry Owner Check Unit Tests', () => {
-  
-  test('valid owner and pantry', () => {
-    expect(pantryOwnerCheck("valid_owner_id", "valid_pantry_id")).toBe(true);
-  });
+const { pantryOwnerCheck } = require('../src/pantryOwner');
 
-  test('incorrect member ID', () => {
-    expect(pantryOwnerCheck("valid_member_id", "valid_pantry_id")).toBe(false);
-  });
+test('PantryOwnerCheck: valid owner and pantry', () => {
+  assert.equal(pantryOwnerCheck('valid_owner_id', 'valid_pantry_id'), true);
+});
 
-  test('boundary cases', () => {
-    expect(pantryOwnerCheck(" valid_owner_id ", "valid_pantry_id")).toBe(false);
-    expect(pantryOwnerCheck("a", "valid_pantry_id")).toBe(false);
-  });
+test('PantryOwnerCheck: incorrect member ID', () => {
+  assert.equal(pantryOwnerCheck('valid_member_id', 'valid_pantry_id'), false);
+});
 
-  test('edge cases', () => {
-    expect(pantryOwnerCheck("deleted_user_id", "valid_pantry_id")).toBe(false);
-    expect(pantryOwnerCheck("valid_owner_id", "orphaned_pantry_id")).toBe(false);
-    expect(pantryOwnerCheck("user!@#$%", "valid_pantry_id")).toBe(false);
-  });
+test('PantryOwnerCheck: boundary cases', () => {
+  assert.equal(pantryOwnerCheck(' valid_owner_id ', 'valid_pantry_id'), false);
+  assert.equal(pantryOwnerCheck('a', 'valid_pantry_id'), false);
+});
 
+test('PantryOwnerCheck: edge cases', () => {
+  assert.equal(pantryOwnerCheck('deleted_user_id', 'valid_pantry_id'), false);
+  assert.equal(pantryOwnerCheck('valid_owner_id', 'orphaned_pantry_id'), false);
+  assert.equal(pantryOwnerCheck('user!@#$%', 'valid_pantry_id'), false);
 });
