@@ -56,6 +56,8 @@ class AIRecipeGen {
       this.stub = false;
     } else if (apiKey) {
       this.stub = false;
+    } else if (process.env.NODE_ENV === 'test') {
+      this.stub = true;
     } else {
       this.stub = true;
     }
