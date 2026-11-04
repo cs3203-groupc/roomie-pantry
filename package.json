@@ -9,7 +9,9 @@
     "test": "node --test"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "@google/genai": "^2.29.1",
+    "express": "^4.21.2",
+    "firebase-admin": "^14.5.0"
   },
   "devDependencies": {
     "supertest": "^7.1.1"

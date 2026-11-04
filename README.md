@@ -8,6 +8,8 @@ RoomiePantry is a collaborative grocery tracking and kitchen management app buil
 * Expiration Alerts: Color-coded dashboard (Green/Yellow/Red) with push notifications for expiring food.
 * "Cook Now" Engine: Recommends minimal-cleanup, single-serving meals prioritizing ingredients about to expire.
 * Live Grocery Sync: Cloud-synced communal shopping lists.
+* AI Recipe Generator (`AIRecipeGen`): Generates recipes strictly from available pantry ingredients using Google Gemini Studio / AI models, with `/ai/recipe`, `/ai/query`, and `/pantry/ai-recipe` endpoints.
+* Persistent Storage (SQLite & Firebase): Automatically persists all pantry items, grocery lists, alerts, and version state across server restarts using zero-config local SQLite (`data/pantry.sqlite`) or cloud Firebase Firestore.
 
 ### Setup
 
@@ -61,3 +63,13 @@ Run the test suite using `npm`:
 
 ```bash
 npm test
+```
+
+### Automated test failure repair
+
+If the `RoomiePantry CI` workflow fails on `main`, the
+`Copilot Test Failure Repair` workflow creates an issue containing the failed
+job logs and assigns it to GitHub Copilot's coding agent. Copilot investigates
+the failure, runs the test suite, and opens a pull request with the proposed
+fix. This requires Copilot coding agent access to be enabled for the
+repository.

@@ -1,11 +1,14 @@
+const path = require('path');
 const express = require('express');
 const { PantryStore } = require('./store');
 const { loginUser } = require('./auth');
+const { AIRecipeGen, aiRecipeGen } = require('./aiRecipeGen');
 
 const app = express();
 const store = new PantryStore();
 
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -43,6 +46,27 @@ app.post('/pantry/items', (req, res) => {
 
 app.get('/pantry/items', (_req, res) => {
   res.json({ items: store.listPantryItems() });
+});
+
+app.delete('/pantry/items/:id', (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'valid id required' });
+  }
+
+  const deleted = store.deletePantryItem(id);
+  if (!deleted) {
+    return res.status(404).json({ error: 'pantry item not found' });
+  }
+
+  return res.json({ success: true, id });
+});
+
+app.get('/system/storage', (_req, res) => {
+  res.json({
+    type: store.storage ? store.storage.type : 'memory',
+    isPersistent: Boolean(store.storage)
+  });
 });
 
 app.get('/pantry/alerts', (_req, res) => {
@@ -87,7 +111,47 @@ app.get('/sync', (_req, res) => {
   res.json(store.getSyncSnapshot());
 });
 
+app.get('/pantry/ai-recipe', async (_req, res) => {
+  try {
+    const recipe = await store.generateAIRecipeAsync();
+    return res.json(recipe);
+  } catch (err) {
+    if (err.name === 'TypeError' || err.name === 'ValueError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/ai/recipe', async (req, res) => {
+  const { items } = req.body || {};
+  try {
+    const recipe = await aiRecipeGen.generate(items);
+    return res.json(recipe);
+  } catch (err) {
+    if (err.name === 'TypeError' || err.name === 'ValueError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/ai/query', async (req, res) => {
+  const { prompt } = req.body || {};
+  try {
+    const response = await aiRecipeGen.query(prompt);
+    return res.json({ response });
+  } catch (err) {
+    if (err.name === 'TypeError' || err.name === 'ValueError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = {
   app,
-  store
+  store,
+  aiRecipeGen,
+  AIRecipeGen
 };

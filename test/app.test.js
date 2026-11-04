@@ -46,6 +46,7 @@ test('recommends cook-now meals prioritizing expiring ingredients', async () => 
   const recipe = res.body.recommendations[0];
   assert.equal(recipe.servings, 1);
   assert.equal(recipe.cleanupLevel, 'minimal');
+  assert.equal(typeof recipe.itemName, 'string');
 });
 
 test('supports live grocery sync through shared list and snapshot endpoint', async () => {
@@ -67,3 +68,13 @@ test('supports live grocery sync through shared list and snapshot endpoint', asy
   assert.equal(Array.isArray(sync.body.groceryList), true);
   assert.equal(Array.isArray(sync.body.notifications), true);
 });
+
+test('serves web GUI at root endpoint', async () => {
+  const res = await request(app)
+    .get('/')
+    .expect('Content-Type', /html/)
+    .expect(200);
+  assert.equal(res.text.includes('RoomiePantry'), true);
+  assert.equal(res.text.includes('AIRecipeGen'), true);
+});
+
