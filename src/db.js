@@ -52,6 +52,13 @@ class SqliteStorage {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS user_allergies (
+        username TEXT NOT NULL,
+        allergy TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        PRIMARY KEY (username, allergy)
+      );
     `);
   }
 
@@ -87,6 +94,15 @@ class SqliteStorage {
       createdAt: row.createdAt
     }));
 
+    const allergyRows = this.db.prepare('SELECT * FROM user_allergies ORDER BY username ASC, allergy ASC').all();
+    const userAllergies = {};
+    for (const row of allergyRows) {
+      if (!userAllergies[row.username]) {
+        userAllergies[row.username] = [];
+      }
+      userAllergies[row.username].push(row.allergy);
+    }
+
     const versionRow = this.db.prepare("SELECT value FROM store_metadata WHERE key = 'version'").get();
     const version = versionRow ? Number(versionRow.value) || 0 : 0;
 
@@ -97,6 +113,7 @@ class SqliteStorage {
       items,
       groceryList,
       notifications,
+      userAllergies,
       version,
       nextItemId: maxPantryId + 1,
       nextGroceryId: maxGroceryId + 1
@@ -181,6 +198,29 @@ class SqliteStorage {
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
     `);
     stmt.run(String(version));
+  }
+
+  getUserAllergies(username) {
+    if (!username) return [];
+    const rows = this.db.prepare('SELECT allergy FROM user_allergies WHERE username = ? ORDER BY allergy ASC').all(username);
+    return rows.map((r) => r.allergy);
+  }
+
+  saveUserAllergy(username, allergy) {
+    if (!username || !allergy) return;
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO user_allergies (username, allergy, createdAt)
+      VALUES (?, ?, ?)
+    `);
+    stmt.run(username, String(allergy).trim().toLowerCase(), new Date().toISOString());
+  }
+
+  deleteUserAllergy(username, allergy) {
+    if (!username || !allergy) return;
+    const stmt = this.db.prepare(`
+      DELETE FROM user_allergies WHERE username = ? AND allergy = ?
+    `);
+    stmt.run(username, String(allergy).trim().toLowerCase());
   }
 
   close() {
@@ -318,6 +358,18 @@ class FirebaseStorage {
     if (this.isAvailable()) {
       this.firestore.collection('store_metadata').doc('version').set({ value: version }).catch(() => {});
     }
+  }
+
+  getUserAllergies(username) {
+    return this.fallbackStorage.getUserAllergies(username);
+  }
+
+  saveUserAllergy(username, allergy) {
+    this.fallbackStorage.saveUserAllergy(username, allergy);
+  }
+
+  deleteUserAllergy(username, allergy) {
+    this.fallbackStorage.deleteUserAllergy(username, allergy);
   }
 
   close() {

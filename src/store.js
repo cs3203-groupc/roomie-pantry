@@ -1,5 +1,6 @@
 const { aiRecipeGen } = require('./aiRecipeGen');
 const { createStorage } = require('./db');
+const AllergyHelper = require('../allergy_helper');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -14,6 +15,7 @@ class PantryStore {
     this.items = [];
     this.groceryList = [];
     this.notifications = [];
+    this.userAllergies = new Map();
 
     if (options.persist || options.dbPath || options.storageType) {
       this.initPersistence(options);
@@ -34,6 +36,11 @@ class PantryStore {
       this.version = saved.version || 0;
       this.nextItemId = saved.nextItemId || 1;
       this.nextGroceryId = saved.nextGroceryId || 1;
+      if (saved.userAllergies) {
+        for (const [user, allergies] of Object.entries(saved.userAllergies)) {
+          this.userAllergies.set(user, new Set(allergies));
+        }
+      }
     }
   }
 
@@ -267,14 +274,56 @@ class PantryStore {
     this.version += 1;
   }
 
-  generateAIRecipe(customItems = null) {
-    const items = customItems || this.items.map((i) => i.name);
-    return aiRecipeGen.generate(items, { sync: true });
+  getUserAllergies(username) {
+    if (!username) return [];
+    if (this.storage && typeof this.storage.getUserAllergies === 'function') {
+      return this.storage.getUserAllergies(username);
+    }
+    const userSet = this.userAllergies.get(username);
+    return userSet ? Array.from(userSet) : [];
   }
 
-  async generateAIRecipeAsync(customItems = null) {
+  addUserAllergy(username, allergy) {
+    if (!username) return false;
+    const helper = new AllergyHelper();
+    if (!helper.add(allergy)) {
+      return false;
+    }
+    const normalized = allergy.trim().toLowerCase();
+    if (!this.userAllergies.has(username)) {
+      this.userAllergies.set(username, new Set());
+    }
+    this.userAllergies.get(username).add(normalized);
+    if (this.storage && typeof this.storage.saveUserAllergy === 'function') {
+      this.storage.saveUserAllergy(username, normalized);
+    }
+    this.bumpVersion();
+    return true;
+  }
+
+  removeUserAllergy(username, allergy) {
+    if (!username || !allergy) return false;
+    const normalized = String(allergy).trim().toLowerCase();
+    if (this.userAllergies.has(username)) {
+      this.userAllergies.get(username).delete(normalized);
+    }
+    if (this.storage && typeof this.storage.deleteUserAllergy === 'function') {
+      this.storage.deleteUserAllergy(username, normalized);
+    }
+    this.bumpVersion();
+    return true;
+  }
+
+  generateAIRecipe(customItems = null, options = {}) {
     const items = customItems || this.items.map((i) => i.name);
-    return aiRecipeGen.generateAsync(items);
+    const allergies = options.allergies || (options.username ? this.getUserAllergies(options.username) : (options.user ? this.getUserAllergies(options.user) : []));
+    return aiRecipeGen.generate(items, { ...options, allergies, sync: true });
+  }
+
+  async generateAIRecipeAsync(customItems = null, options = {}) {
+    const items = customItems || this.items.map((i) => i.name);
+    const allergies = options.allergies || (options.username ? this.getUserAllergies(options.username) : (options.user ? this.getUserAllergies(options.user) : []));
+    return aiRecipeGen.generateAsync(items, { ...options, allergies });
   }
 }
 

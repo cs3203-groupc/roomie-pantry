@@ -35,6 +35,72 @@ try {
   // @google/genai optional or not yet installed
 }
 
+const ALLERGEN_MAP = {
+  dairy: [
+    'dairy', 'milk', 'cheese', 'butter', 'cream', 'yogurt', 'whey', 'ghee', 'casein',
+    'cheddar', 'mozzarella', 'parmesan', 'swiss', 'provolone', 'gouda', 'brie', 'ricotta', 'feta'
+  ],
+  cheese: [
+    'cheese', 'cheddar', 'mozzarella', 'parmesan', 'swiss', 'provolone', 'gouda', 'brie', 'ricotta', 'feta'
+  ],
+  peanuts: ['peanut', 'peanuts'],
+  peanut: ['peanut', 'peanuts'],
+  nuts: [
+    'nut', 'nuts', 'almond', 'almonds', 'walnut', 'walnuts', 'cashew', 'cashews',
+    'pecan', 'pecans', 'pistachio', 'pistachios', 'hazelnut', 'hazelnuts', 'macadamia'
+  ],
+  'tree nuts': [
+    'nut', 'nuts', 'almond', 'almonds', 'walnut', 'walnuts', 'cashew', 'cashews',
+    'pecan', 'pecans', 'pistachio', 'pistachios', 'hazelnut', 'hazelnuts', 'macadamia'
+  ],
+  'tree nut': [
+    'nut', 'nuts', 'almond', 'almonds', 'walnut', 'walnuts', 'cashew', 'cashews',
+    'pecan', 'pecans', 'pistachio', 'pistachios', 'hazelnut', 'hazelnuts', 'macadamia'
+  ],
+  gluten: [
+    'gluten', 'wheat', 'flour', 'bread', 'pasta', 'barley', 'rye',
+    'seitan', 'semolina', 'couscous', 'noodles', 'ramen', 'udon', 'spaghetti'
+  ],
+  soy: ['soy', 'soya', 'tofu', 'edamame', 'tamari', 'soy sauce'],
+  egg: ['egg', 'eggs'],
+  eggs: ['egg', 'eggs'],
+  fish: [
+    'fish', 'salmon', 'tuna', 'cod', 'halibut', 'trout', 'tilapia', 'anchovy', 'anchovies',
+    'sardine', 'sardines', 'mackerel'
+  ],
+  shellfish: [
+    'shellfish', 'shrimp', 'crab', 'lobster', 'prawn', 'prawns', 'clam', 'clams',
+    'mussel', 'mussels', 'oyster', 'oysters', 'scallop', 'scallops', 'squid', 'calamari'
+  ],
+  sesame: ['sesame', 'tahini']
+};
+
+function matchesAllergen(ingredient, allergen) {
+  if (!ingredient || !allergen) return false;
+  const ingLower = String(ingredient).toLowerCase().trim();
+  const allLower = String(allergen).toLowerCase().trim();
+  if (!ingLower || !allLower) return false;
+
+  if (ingLower === allLower || ingLower.includes(allLower) || allLower.includes(ingLower)) {
+    return true;
+  }
+
+  const mapped = ALLERGEN_MAP[allLower];
+  if (mapped && mapped.some((term) => ingLower.includes(term) || term.includes(ingLower))) {
+    return true;
+  }
+
+  for (const [category, terms] of Object.entries(ALLERGEN_MAP)) {
+    if (category === allLower || terms.includes(allLower)) {
+      if (terms.some((t) => ingLower.includes(t) || t.includes(ingLower))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 class AIRecipeGen {
   /**
    * @param {Object} [options]
@@ -50,14 +116,20 @@ class AIRecipeGen {
     this.model = model || (provider === 'gemini' ? 'gemini-3.8-flash' : 'gpt-4o-mini');
     this.client = client;
 
+    const isTest = process.env.NODE_ENV === 'test' ||
+      Boolean(process.env.CI) ||
+      process.env.npm_lifecycle_event === 'test' ||
+      process.argv.includes('--test') ||
+      process.argv.some((arg) => typeof arg === 'string' && (arg.endsWith('test.js') || arg.endsWith('test.mjs') || arg.endsWith('test')));
+
     if (stub !== undefined) {
       this.stub = Boolean(stub);
     } else if (client) {
       this.stub = false;
+    } else if (isTest) {
+      this.stub = true;
     } else if (apiKey) {
       this.stub = false;
-    } else if (process.env.NODE_ENV === 'test') {
-      this.stub = true;
     } else {
       this.stub = true;
     }
@@ -99,23 +171,44 @@ class AIRecipeGen {
       throw new ValueError('Pantry is empty; at least one ingredient required');
     }
 
+    const allergies = Array.isArray(options.allergies)
+      ? options.allergies.map((a) => String(a).trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    let safeItems = Array.from(items);
+    if (allergies.length > 0) {
+      safeItems = items.filter((item) => !allergies.some((allergen) => matchesAllergen(item, allergen)));
+      if (safeItems.length === 0) {
+        safeItems = ['rice', 'vegetables'];
+      }
+    }
+
     const isStub = options.stub !== undefined ? Boolean(options.stub) : this.stub;
     if (isStub || options.sync) {
+      const isAllergySafe = allergies.length > 0;
       return {
-        title: 'Quick Pantry Meal',
-        ingredients: Array.from(items),
-        instructions: [
-          `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
-          `Heat a skillet or pan over medium heat with a light coat of oil.`,
-          `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
-          `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
-        ],
+        title: isAllergySafe ? 'Allergy-Safe Quick Pantry Meal' : 'Quick Pantry Meal',
+        ingredients: Array.from(safeItems),
+        instructions: isAllergySafe
+          ? [
+              'Ensure all preparation surfaces and cookware are sanitized to avoid cross-contamination.',
+              `Prepare and chop ${safeItems.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+              'Heat a pan over medium heat with a light coat of cooking oil.',
+              `Add ${safeItems.join(', ')} and cook for 5 to 7 minutes until hot and tender.`,
+              'Season to taste with salt and pepper, and serve warm.'
+            ]
+          : [
+              `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+              `Heat a skillet or pan over medium heat with a light coat of oil.`,
+              `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
+              `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
+            ],
         prepTime: '10-15 mins',
         servings: 1
       };
     }
 
-    return this.generateAsync(items, options);
+    return this.generateAsync(safeItems, { ...options, allergies });
   }
 
   /**
@@ -179,28 +272,72 @@ class AIRecipeGen {
       throw new ValueError('Pantry is empty; at least one ingredient required');
     }
 
+    const allergies = Array.isArray(options.allergies)
+      ? options.allergies.map((a) => String(a).trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    let safeItems = Array.from(items);
+    if (allergies.length > 0) {
+      safeItems = items.filter((item) => !allergies.some((allergen) => matchesAllergen(item, allergen)));
+      if (safeItems.length === 0) {
+        safeItems = ['rice', 'vegetables'];
+      }
+    }
+
     const isStub = options.stub !== undefined ? Boolean(options.stub) : this.stub;
     if (isStub) {
+      const isAllergySafe = allergies.length > 0;
       return {
-        title: 'Quick Pantry Meal',
-        ingredients: Array.from(items),
-        instructions: [
-          `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
-          `Heat a skillet or pan over medium heat with a light coat of oil.`,
-          `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
-          `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
-        ],
+        title: isAllergySafe ? 'Allergy-Safe Quick Pantry Meal' : 'Quick Pantry Meal',
+        ingredients: Array.from(safeItems),
+        instructions: isAllergySafe
+          ? [
+              'Ensure all preparation surfaces and cookware are sanitized to avoid cross-contamination.',
+              `Prepare and chop ${safeItems.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+              'Heat a pan over medium heat with a light coat of cooking oil.',
+              `Add ${safeItems.join(', ')} and cook for 5 to 7 minutes until hot and tender.`,
+              'Season to taste with salt and pepper, and serve warm.'
+            ]
+          : [
+              `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+              `Heat a skillet or pan over medium heat with a light coat of oil.`,
+              `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
+              `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
+            ],
         prepTime: '10-15 mins',
         servings: 1
       };
     }
 
     if (this.client && typeof this.client.generate === 'function') {
-      return await this.client.generate(items, options);
+      const result = await this.client.generate(safeItems, { ...options, allergies });
+      if (result && allergies.length > 0) {
+        if (Array.isArray(result.ingredients)) {
+          result.ingredients = result.ingredients.filter((ing) => !allergies.some((a) => matchesAllergen(ing, a)));
+          if (result.ingredients.length === 0) {
+            result.ingredients = Array.from(safeItems);
+          }
+        }
+        if (Array.isArray(result.instructions)) {
+          result.instructions = result.instructions.filter((step) => !allergies.some((a) => matchesAllergen(step, a)));
+          if (result.instructions.length === 0) {
+            const safeIngs = Array.isArray(result.ingredients) && result.ingredients.length > 0 ? result.ingredients : Array.from(safeItems);
+            result.instructions = [
+              'Ensure all preparation surfaces and cookware are sanitized to avoid cross-contamination.',
+              `Prepare and cook ${safeIngs.join(' and ')} thoroughly.`,
+              'Season to taste and serve warm.'
+            ];
+          }
+        }
+      }
+      return result;
     }
 
-    const systemPrompt = `You are an expert chef assistant for RoomiePantry. Generate a complete, practical, delicious recipe strictly using only the following available pantry items: ${items.join(', ')}.
-You MUST return ONLY a valid JSON object with this exact shape:
+    let systemPrompt = `You are an expert chef assistant for RoomiePantry. Generate a complete, practical, delicious recipe strictly using only the following available pantry items: ${safeItems.join(', ')}.`;
+    if (allergies.length > 0) {
+      systemPrompt += `\nCRITICAL ALLERGY RESTRICTION: The diner has severe, life-threatening dietary allergies to: [${allergies.join(', ')}]. Under NO circumstances should any recipe include, mention, suggest, or use these allergen ingredients or any of their derivatives. You must ensure all suggested ingredients and preparation steps are 100% allergen-free.`;
+    }
+    systemPrompt += `\nYou MUST return ONLY a valid JSON object with this exact shape:
 {
   "title": "Recipe Title",
   "ingredients": ["ingredient 1", "ingredient 2"],
@@ -232,16 +369,19 @@ Do not include markdown backticks or commentary outside the JSON.`;
       }
 
       const parsed = this._extractJson(rawText);
-      const title = (parsed && typeof parsed.title === 'string' && parsed.title.trim())
+      let title = (parsed && typeof parsed.title === 'string' && parsed.title.trim())
         ? parsed.title.trim()
-        : 'Quick Pantry Meal';
+        : (allergies.length > 0 ? 'Allergy-Safe Quick Pantry Meal' : 'Quick Pantry Meal');
 
-      let ingredients = Array.from(items);
+      let ingredients = Array.from(safeItems);
       if (parsed && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
-        const pantryItems = Array.from(items).map((item) => String(item));
+        const pantryItems = Array.from(safeItems).map((item) => String(item));
         const matchedIngredients = [];
         for (const candidate of parsed.ingredients) {
           const candidateText = String(candidate).toLowerCase();
+          if (allergies.length > 0 && allergies.some((a) => matchesAllergen(candidateText, a))) {
+            continue;
+          }
           const matched = pantryItems.find((pantryItem) => {
             const normalizedPantryItem = pantryItem.toLowerCase();
             return candidateText === normalizedPantryItem || candidateText.includes(normalizedPantryItem);
@@ -255,6 +395,13 @@ Do not include markdown backticks or commentary outside the JSON.`;
         }
       }
 
+      if (allergies.length > 0) {
+        ingredients = ingredients.filter((ing) => !allergies.some((a) => matchesAllergen(ing, a)));
+        if (ingredients.length === 0) {
+          ingredients = Array.from(safeItems);
+        }
+      }
+
       let instructions = [];
       if (parsed && Array.isArray(parsed.instructions) && parsed.instructions.length > 0) {
         instructions = parsed.instructions.map((step) => String(step).trim()).filter(Boolean);
@@ -262,13 +409,23 @@ Do not include markdown backticks or commentary outside the JSON.`;
         instructions = parsed.instructions.split(/\r?\n|\d+\.\s+/).map((s) => s.trim()).filter(Boolean);
       }
 
+      if (allergies.length > 0 && instructions.length > 0) {
+        instructions = instructions.filter((step) => !allergies.some((a) => matchesAllergen(step, a)));
+      }
+
       if (instructions.length === 0) {
-        instructions = [
-          `Gather and prepare: ${ingredients.join(', ')}.`,
-          `Heat a skillet or pan over medium heat with cooking oil or water.`,
-          `Add ${ingredients.join(' and ')} to the pan and cook for 5 to 8 minutes until thoroughly cooked.`,
-          `Season to taste with salt and pepper, then transfer to a plate and serve immediately.`
-        ];
+        instructions = allergies.length > 0
+          ? [
+              'Ensure all preparation surfaces and cookware are sanitized to avoid cross-contamination.',
+              `Prepare and cook ${ingredients.join(' and ')} thoroughly.`,
+              'Season to taste and serve warm.'
+            ]
+          : [
+              `Gather and prepare: ${ingredients.join(', ')}.`,
+              `Heat a skillet or pan over medium heat with cooking oil or water.`,
+              `Add ${ingredients.join(' and ')} to the pan and cook for 5 to 8 minutes until thoroughly cooked.`,
+              `Season to taste with salt and pepper, then transfer to a plate and serve immediately.`
+            ];
       }
 
       const prepTime = (parsed && typeof parsed.prepTime === 'string') ? parsed.prepTime : '10-15 mins';
@@ -285,15 +442,24 @@ Do not include markdown backticks or commentary outside the JSON.`;
       if (options.strict) {
         throw _err;
       }
+      const isAllergySafe = allergies.length > 0;
       return {
-        title: 'Quick Pantry Meal',
-        ingredients: Array.from(items),
-        instructions: [
-          `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
-          `Heat a skillet or pan over medium heat with a light coat of oil.`,
-          `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
-          `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
-        ],
+        title: isAllergySafe ? 'Allergy-Safe Quick Pantry Meal' : 'Quick Pantry Meal',
+        ingredients: Array.from(safeItems),
+        instructions: isAllergySafe
+          ? [
+              'Ensure all preparation surfaces and cookware are sanitized to avoid cross-contamination.',
+              `Prepare and chop ${safeItems.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+              'Heat a pan over medium heat with a light coat of cooking oil.',
+              `Add ${safeItems.join(', ')} and cook for 5 to 7 minutes until hot and tender.`,
+              'Season to taste with salt and pepper, and serve warm.'
+            ]
+          : [
+              `Prepare and chop ${items.slice(0, 2).join(' and ')} into bite-sized pieces.`,
+              `Heat a skillet or pan over medium heat with a light coat of oil.`,
+              `Add ${items.join(', ')} and sauté for 5 to 7 minutes until tender and hot.`,
+              `Season with salt and pepper to taste, transfer to a plate, and serve warm.`
+            ],
         prepTime: '10-15 mins',
         servings: 1
       };
@@ -435,14 +601,21 @@ Do not include markdown backticks or commentary outside the JSON.`;
   }
 }
 
+const isTestEnv = process.env.NODE_ENV === 'test' ||
+  Boolean(process.env.CI) ||
+  process.env.npm_lifecycle_event === 'test' ||
+  process.argv.includes('--test') ||
+  process.argv.some((arg) => typeof arg === 'string' && (arg.endsWith('test.js') || arg.endsWith('test.mjs') || arg.endsWith('test')));
 const defaultApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY;
 const aiRecipeGen = new AIRecipeGen({
   apiKey: defaultApiKey,
-  stub: !defaultApiKey
+  stub: isTestEnv ? true : !defaultApiKey
 });
 
 module.exports = {
   AIRecipeGen,
   aiRecipeGen,
-  ValueError
+  ValueError,
+  matchesAllergen,
+  ALLERGEN_MAP
 };

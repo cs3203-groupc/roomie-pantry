@@ -34,6 +34,45 @@ app.post('/login', (req, res) => {
   });
 });
 
+app.get('/user/allergies', (req, res) => {
+  const username = req.query.username || 'student1';
+  const allergies = store.getUserAllergies(username);
+  return res.json({ username, allergies });
+});
+
+app.post('/user/allergies', (req, res) => {
+  const { username, allergy } = req.body || {};
+  if (!username || typeof username !== 'string' || !username.trim()) {
+    return res.status(400).json({ error: 'Valid username required' });
+  }
+  if (!allergy || typeof allergy !== 'string' || allergy.trim().length < 2) {
+    return res.status(400).json({ error: 'Valid allergy string (min 2 characters) required' });
+  }
+  const added = store.addUserAllergy(username.trim(), allergy.trim());
+  if (!added) {
+    return res.status(400).json({ error: 'Invalid allergy item' });
+  }
+  return res.status(201).json({
+    success: true,
+    username: username.trim(),
+    allergy: allergy.trim().toLowerCase()
+  });
+});
+
+app.delete('/user/allergies/:allergy', (req, res) => {
+  const username = req.query.username || req.body?.username || 'student1';
+  const allergy = req.params.allergy;
+  if (!allergy || typeof allergy !== 'string' || !allergy.trim()) {
+    return res.status(400).json({ error: 'Valid allergy param required' });
+  }
+  store.removeUserAllergy(username, allergy.trim());
+  return res.json({
+    success: true,
+    username,
+    allergy: allergy.trim().toLowerCase()
+  });
+});
+
 app.post('/pantry/items', (req, res) => {
   const { name, owner, quantity, expiresOn, isShared } = req.body;
   if (!name || !expiresOn) {
@@ -111,9 +150,11 @@ app.get('/sync', (_req, res) => {
   res.json(store.getSyncSnapshot());
 });
 
-app.get('/pantry/ai-recipe', async (_req, res) => {
+app.get('/pantry/ai-recipe', async (req, res) => {
+  const username = req.query.username || req.query.user || null;
+  const userAllergies = username ? store.getUserAllergies(username) : [];
   try {
-    const recipe = await store.generateAIRecipeAsync();
+    const recipe = await store.generateAIRecipeAsync(null, { allergies: userAllergies, username });
     return res.json(recipe);
   } catch (err) {
     if (err.name === 'TypeError' || err.name === 'ValueError') {
@@ -124,9 +165,12 @@ app.get('/pantry/ai-recipe', async (_req, res) => {
 });
 
 app.post('/ai/recipe', async (req, res) => {
-  const { items } = req.body || {};
+  const { items, allergies, username } = req.body || {};
+  const userAllergies = Array.isArray(allergies)
+    ? allergies
+    : (username ? store.getUserAllergies(username) : []);
   try {
-    const recipe = await aiRecipeGen.generate(items);
+    const recipe = await aiRecipeGen.generate(items, { allergies: userAllergies });
     return res.json(recipe);
   } catch (err) {
     if (err.name === 'TypeError' || err.name === 'ValueError') {
