@@ -52,6 +52,13 @@ class SqliteStorage {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS user_allergies (
+        username TEXT NOT NULL,
+        allergy TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        PRIMARY KEY (username, allergy)
+      );
     `);
   }
 
@@ -87,6 +94,15 @@ class SqliteStorage {
       createdAt: row.createdAt
     }));
 
+    const allergyRows = this.db.prepare('SELECT * FROM user_allergies ORDER BY username ASC, allergy ASC').all();
+    const userAllergies = Object.create(null);
+    for (const row of allergyRows) {
+      if (!Object.prototype.hasOwnProperty.call(userAllergies, row.username) || !Array.isArray(userAllergies[row.username])) {
+        userAllergies[row.username] = [];
+      }
+      userAllergies[row.username].push(row.allergy);
+    }
+
     const versionRow = this.db.prepare("SELECT value FROM store_metadata WHERE key = 'version'").get();
     const version = versionRow ? Number(versionRow.value) || 0 : 0;
 
@@ -97,6 +113,7 @@ class SqliteStorage {
       items,
       groceryList,
       notifications,
+      userAllergies,
       version,
       nextItemId: maxPantryId + 1,
       nextGroceryId: maxGroceryId + 1
@@ -183,6 +200,32 @@ class SqliteStorage {
     stmt.run(String(version));
   }
 
+  getUserAllergies(username) {
+    if (!username) return [];
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
+    const rows = this.db.prepare('SELECT allergy FROM user_allergies WHERE username = ? ORDER BY allergy ASC').all(userStr);
+    return rows.map((r) => r.allergy);
+  }
+
+  saveUserAllergy(username, allergy) {
+    if (!username || !allergy) return;
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO user_allergies (username, allergy, createdAt)
+      VALUES (?, ?, ?)
+    `);
+    stmt.run(userStr, String(allergy).trim().toLowerCase(), new Date().toISOString());
+  }
+
+  deleteUserAllergy(username, allergy) {
+    if (!username || !allergy) return;
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
+    const stmt = this.db.prepare(`
+      DELETE FROM user_allergies WHERE username = ? AND allergy = ?
+    `);
+    stmt.run(userStr, String(allergy).trim().toLowerCase());
+  }
+
   close() {
     try {
       this.db.close();
@@ -237,11 +280,14 @@ class FirebaseStorage {
     return Boolean(this.firestore);
   }
 
-  async loadState() {
+  loadState() {
     if (!this.isAvailable()) {
       return this.fallbackStorage.loadState();
     }
+    return this._loadStateFromFirestore();
+  }
 
+  async _loadStateFromFirestore() {
     try {
       const [pantrySnap, grocerySnap, notifSnap, metaSnap] = await Promise.all([
         this.firestore.collection('pantry_items').orderBy('id', 'asc').get(),
@@ -318,6 +364,18 @@ class FirebaseStorage {
     if (this.isAvailable()) {
       this.firestore.collection('store_metadata').doc('version').set({ value: version }).catch(() => {});
     }
+  }
+
+  getUserAllergies(username) {
+    return this.fallbackStorage.getUserAllergies(username);
+  }
+
+  saveUserAllergy(username, allergy) {
+    this.fallbackStorage.saveUserAllergy(username, allergy);
+  }
+
+  deleteUserAllergy(username, allergy) {
+    this.fallbackStorage.deleteUserAllergy(username, allergy);
   }
 
   close() {

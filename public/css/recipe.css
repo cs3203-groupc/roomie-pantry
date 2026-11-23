@@ -1,0 +1,181 @@
+/* Recipe Tabs */
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  background: #334155;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ai-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Recipe Display Card */
+.recipe-display {
+  background: #0f172a;
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.recipe-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.recipe-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #a78bfa;
+}
+
+.recipe-meta-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.meta-tag {
+  background: rgba(99, 102, 241, 0.15);
+  color: #c7d2fe;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.meta-tag-zero-waste {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.section-label {
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+  display: block;
+  color: var(--text-muted);
+}
+
+.ingredient-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  background: #334155;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.35rem;
+  font-size: 0.82rem;
+  color: #f1f5f9;
+}
+
+.instructions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.instruction-step {
+  display: flex;
+  gap: 0.75rem;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  align-items: flex-start;
+}
+
+.step-num {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: bold;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.step-text {
+  font-size: 0.9rem;
+  color: #e2e8f0;
+  line-height: 1.45;
+}
+
+/* AI Chef Chat Response */
+.ai-chat-response {
+  background: #0f172a;
+  border-left: 3px solid var(--accent);
+  padding: 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+  line-height: 1.6;
+}
+
+.ai-chat-response h2 {
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  color: #818cf8;
+}
+
+.ai-chat-response h3 {
+  font-weight: bold;
+  margin-top: 0.8rem;
+  margin-bottom: 0.3rem;
+  color: #a5b4fc;
+}
+
+.ai-chat-response strong {
+  color: #fff;
+}
+
+.ai-chat-response li {
+  margin-left: 1.25rem;
+}

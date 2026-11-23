@@ -1,5 +1,6 @@
 const { aiRecipeGen } = require('./aiRecipeGen');
 const { createStorage } = require('./db');
+const AllergyHelper = require('../allergy_helper');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -14,6 +15,8 @@ class PantryStore {
     this.items = [];
     this.groceryList = [];
     this.notifications = [];
+    this.userAllergies = new Map();
+    this.currentUser = null;
 
     if (options.persist || options.dbPath || options.storageType) {
       this.initPersistence(options);
@@ -27,32 +30,49 @@ class PantryStore {
     });
 
     const saved = this.storage.loadState();
-    if (saved) {
-      this.items = saved.items || [];
-      this.groceryList = saved.groceryList || [];
-      this.notifications = saved.notifications || [];
-      this.version = saved.version || 0;
-      this.nextItemId = saved.nextItemId || 1;
-      this.nextGroceryId = saved.nextGroceryId || 1;
+    if (saved && typeof saved.then === 'function') {
+      saved.then((state) => {
+        if (state) this._applySavedState(state);
+      }).catch((err) => {
+        console.error('Failed to load async state:', err);
+      });
+    } else if (saved) {
+      this._applySavedState(saved);
+    }
+  }
+
+  _applySavedState(saved) {
+    this.items = saved.items || [];
+    this.groceryList = saved.groceryList || [];
+    this.notifications = saved.notifications || [];
+    this.version = saved.version || 0;
+    this.nextItemId = saved.nextItemId || 1;
+    this.nextGroceryId = saved.nextGroceryId || 1;
+    if (saved.userAllergies) {
+      for (const [user, allergies] of Object.entries(saved.userAllergies)) {
+        this.userAllergies.set(user, new Set(allergies));
+      }
     }
   }
 
   addPantryItem({ name, owner = null, quantity = 1, expiresOn, isShared = true }) {
+    const finalQuantity = (quantity === null || quantity === undefined) ? 1 : Number(quantity);
     const item = {
-      id: this.nextItemId++,
+      id: this.nextItemId,
       name,
       owner,
-      quantity,
+      quantity: finalQuantity,
       expiresOn,
       isShared: Boolean(isShared),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    this.items.push(item);
     if (this.storage) {
       this.storage.savePantryItem(item);
     }
+    this.nextItemId++;
+    this.items.push(item);
     this.bumpVersion();
 
     const notif = {
@@ -89,9 +109,13 @@ class PantryStore {
     });
   }
 
-  deletePantryItem(itemId) {
+  deletePantryItem(itemId, requester = null) {
     const idx = this.items.findIndex((item) => item.id === itemId);
     if (idx === -1) return false;
+    const item = this.items[idx];
+    if (requester && !item.isShared && item.owner && item.owner !== requester) {
+      return false;
+    }
     this.items.splice(idx, 1);
     if (this.storage) {
       this.storage.deletePantryItem(itemId);
@@ -101,20 +125,22 @@ class PantryStore {
   }
 
   addGroceryItem({ name, requestedBy = null, quantity = 1 }) {
+    const finalQuantity = (quantity === null || quantity === undefined) ? 1 : Number(quantity);
     const item = {
-      id: this.nextGroceryId++,
+      id: this.nextGroceryId,
       name,
       requestedBy,
-      quantity,
+      quantity: finalQuantity,
       checked: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    this.groceryList.push(item);
     if (this.storage) {
       this.storage.saveGroceryItem(item);
     }
+    this.nextGroceryId++;
+    this.groceryList.push(item);
     this.bumpVersion();
 
     const notif = {
@@ -173,21 +199,26 @@ class PantryStore {
     this.items = [];
     this.groceryList = [];
     this.notifications = [];
+    this.userAllergies.clear();
+    this.currentUser = null;
     this.version = 0;
     this.nextItemId = 1;
     this.nextGroceryId = 1;
     if (this.storage && this.storage.type === 'sqlite' && this.storage.db) {
-      this.storage.db.exec('DELETE FROM pantry_items; DELETE FROM grocery_items; DELETE FROM notifications; DELETE FROM store_metadata;');
+      this.storage.db.exec('DELETE FROM pantry_items; DELETE FROM grocery_items; DELETE FROM notifications; DELETE FROM user_allergies; DELETE FROM store_metadata;');
     }
   }
 
   getExpirationAlerts(now = new Date()) {
     const alerts = this.items.map((item) => {
       const expiresAt = new Date(item.expiresOn);
-      const diffDays = Math.ceil((expiresAt.getTime() - now.getTime()) / DAY_MS);
+      const time = expiresAt.getTime();
+      const diffDays = Number.isNaN(time) ? NaN : Math.ceil((time - now.getTime()) / DAY_MS);
 
       let status = 'green';
-      if (diffDays < 0) {
+      if (Number.isNaN(diffDays)) {
+        status = 'red';
+      } else if (diffDays < 0) {
         status = 'red';
       } else if (diffDays <= 2) {
         status = 'red';
@@ -202,7 +233,7 @@ class PantryStore {
         isShared: item.isShared,
         expiresOn: item.expiresOn,
         status,
-        daysUntilExpiry: diffDays
+        daysUntilExpiry: Number.isNaN(diffDays) ? null : diffDays
       };
     });
 
@@ -233,7 +264,8 @@ class PantryStore {
     const byUrgency = this.items
       .map((item) => {
         const expiresAt = new Date(item.expiresOn);
-        const diffDays = Math.ceil((expiresAt.getTime() - now.getTime()) / DAY_MS);
+        const time = expiresAt.getTime();
+        const diffDays = Number.isNaN(time) ? 0 : Math.ceil((time - now.getTime()) / DAY_MS);
         return { ...item, urgency: diffDays };
       })
       .sort((a, b) => a.urgency - b.urgency);
@@ -247,7 +279,9 @@ class PantryStore {
         ingredientsUsed: [item.name],
         servings: 1,
         cleanupLevel: 'minimal',
-        reason: `Uses ${item.name}, which expires in ${item.urgency} day(s).`
+        reason: Number.isNaN(item.urgency)
+          ? `Uses ${item.name}, which has an unknown expiration.`
+          : `Uses ${item.name}, which expires in ${item.urgency} day(s).`
       };
     });
 
@@ -257,24 +291,63 @@ class PantryStore {
   getSyncSnapshot() {
     return {
       version: this.version,
-      pantry: this.items,
-      groceryList: this.groceryList,
-      notifications: this.notifications
+      pantry: this.items.map((i) => ({ ...i })),
+      groceryList: this.groceryList.map((i) => ({ ...i })),
+      notifications: this.notifications.map((i) => ({ ...i }))
     };
   }
 
-  bumpVersion() {
-    this.version += 1;
+  getUserAllergies(username) {
+    if (!username) return [];
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
+    if (this.storage && typeof this.storage.getUserAllergies === 'function') {
+      return this.storage.getUserAllergies(userStr);
+    }
+    const userSet = this.userAllergies.get(userStr);
+    return userSet ? Array.from(userSet) : [];
   }
 
-  generateAIRecipe(customItems = null) {
-    const items = customItems || this.items.map((i) => i.name);
-    return aiRecipeGen.generate(items, { sync: true });
+  addUserAllergy(username, allergy) {
+    if (!username) return false;
+    const helper = new AllergyHelper();
+    if (!helper.add(allergy)) {
+      return false;
+    }
+    const normalized = allergy.trim().toLowerCase();
+    if (!this.userAllergies.has(username)) {
+      this.userAllergies.set(username, new Set());
+    }
+    this.userAllergies.get(username).add(normalized);
+    if (this.storage && typeof this.storage.saveUserAllergy === 'function') {
+      this.storage.saveUserAllergy(username, normalized);
+    }
+    this.bumpVersion();
+    return true;
   }
 
-  async generateAIRecipeAsync(customItems = null) {
+  removeUserAllergy(username, allergy) {
+    if (!username || !allergy) return false;
+    const normalized = String(allergy).trim().toLowerCase();
+    if (this.userAllergies.has(username)) {
+      this.userAllergies.get(username).delete(normalized);
+    }
+    if (this.storage && typeof this.storage.deleteUserAllergy === 'function') {
+      this.storage.deleteUserAllergy(username, normalized);
+    }
+    this.bumpVersion();
+    return true;
+  }
+
+  generateAIRecipe(customItems = null, options = {}) {
     const items = customItems || this.items.map((i) => i.name);
-    return aiRecipeGen.generateAsync(items);
+    const allergies = options.allergies || (options.username ? this.getUserAllergies(options.username) : (options.user ? this.getUserAllergies(options.user) : []));
+    return aiRecipeGen.generate(items, { ...options, allergies, sync: true });
+  }
+
+  async generateAIRecipeAsync(customItems = null, options = {}) {
+    const items = customItems || this.items.map((i) => i.name);
+    const allergies = options.allergies || (options.username ? this.getUserAllergies(options.username) : (options.user ? this.getUserAllergies(options.user) : []));
+    return aiRecipeGen.generateAsync(items, { ...options, allergies });
   }
 }
 
