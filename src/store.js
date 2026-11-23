@@ -16,6 +16,7 @@ class PantryStore {
     this.groceryList = [];
     this.notifications = [];
     this.userAllergies = new Map();
+    this.currentUser = null;
 
     if (options.persist || options.dbPath || options.storageType) {
       this.initPersistence(options);
@@ -29,37 +30,49 @@ class PantryStore {
     });
 
     const saved = this.storage.loadState();
-    if (saved) {
-      this.items = saved.items || [];
-      this.groceryList = saved.groceryList || [];
-      this.notifications = saved.notifications || [];
-      this.version = saved.version || 0;
-      this.nextItemId = saved.nextItemId || 1;
-      this.nextGroceryId = saved.nextGroceryId || 1;
-      if (saved.userAllergies) {
-        for (const [user, allergies] of Object.entries(saved.userAllergies)) {
-          this.userAllergies.set(user, new Set(allergies));
-        }
+    if (saved && typeof saved.then === 'function') {
+      saved.then((state) => {
+        if (state) this._applySavedState(state);
+      }).catch((err) => {
+        console.error('Failed to load async state:', err);
+      });
+    } else if (saved) {
+      this._applySavedState(saved);
+    }
+  }
+
+  _applySavedState(saved) {
+    this.items = saved.items || [];
+    this.groceryList = saved.groceryList || [];
+    this.notifications = saved.notifications || [];
+    this.version = saved.version || 0;
+    this.nextItemId = saved.nextItemId || 1;
+    this.nextGroceryId = saved.nextGroceryId || 1;
+    if (saved.userAllergies) {
+      for (const [user, allergies] of Object.entries(saved.userAllergies)) {
+        this.userAllergies.set(user, new Set(allergies));
       }
     }
   }
 
   addPantryItem({ name, owner = null, quantity = 1, expiresOn, isShared = true }) {
+    const finalQuantity = (quantity === null || quantity === undefined) ? 1 : Number(quantity);
     const item = {
-      id: this.nextItemId++,
+      id: this.nextItemId,
       name,
       owner,
-      quantity,
+      quantity: finalQuantity,
       expiresOn,
       isShared: Boolean(isShared),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    this.items.push(item);
     if (this.storage) {
       this.storage.savePantryItem(item);
     }
+    this.nextItemId++;
+    this.items.push(item);
     this.bumpVersion();
 
     const notif = {
@@ -108,20 +121,22 @@ class PantryStore {
   }
 
   addGroceryItem({ name, requestedBy = null, quantity = 1 }) {
+    const finalQuantity = (quantity === null || quantity === undefined) ? 1 : Number(quantity);
     const item = {
-      id: this.nextGroceryId++,
+      id: this.nextGroceryId,
       name,
       requestedBy,
-      quantity,
+      quantity: finalQuantity,
       checked: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    this.groceryList.push(item);
     if (this.storage) {
       this.storage.saveGroceryItem(item);
     }
+    this.nextGroceryId++;
+    this.groceryList.push(item);
     this.bumpVersion();
 
     const notif = {
@@ -180,21 +195,26 @@ class PantryStore {
     this.items = [];
     this.groceryList = [];
     this.notifications = [];
+    this.userAllergies.clear();
+    this.currentUser = null;
     this.version = 0;
     this.nextItemId = 1;
     this.nextGroceryId = 1;
     if (this.storage && this.storage.type === 'sqlite' && this.storage.db) {
-      this.storage.db.exec('DELETE FROM pantry_items; DELETE FROM grocery_items; DELETE FROM notifications; DELETE FROM store_metadata;');
+      this.storage.db.exec('DELETE FROM pantry_items; DELETE FROM grocery_items; DELETE FROM notifications; DELETE FROM user_allergies; DELETE FROM store_metadata;');
     }
   }
 
   getExpirationAlerts(now = new Date()) {
     const alerts = this.items.map((item) => {
       const expiresAt = new Date(item.expiresOn);
-      const diffDays = Math.ceil((expiresAt.getTime() - now.getTime()) / DAY_MS);
+      const time = expiresAt.getTime();
+      const diffDays = Number.isNaN(time) ? NaN : Math.ceil((time - now.getTime()) / DAY_MS);
 
       let status = 'green';
-      if (diffDays < 0) {
+      if (Number.isNaN(diffDays)) {
+        status = 'red';
+      } else if (diffDays < 0) {
         status = 'red';
       } else if (diffDays <= 2) {
         status = 'red';
@@ -209,7 +229,7 @@ class PantryStore {
         isShared: item.isShared,
         expiresOn: item.expiresOn,
         status,
-        daysUntilExpiry: diffDays
+        daysUntilExpiry: Number.isNaN(diffDays) ? null : diffDays
       };
     });
 
@@ -240,7 +260,8 @@ class PantryStore {
     const byUrgency = this.items
       .map((item) => {
         const expiresAt = new Date(item.expiresOn);
-        const diffDays = Math.ceil((expiresAt.getTime() - now.getTime()) / DAY_MS);
+        const time = expiresAt.getTime();
+        const diffDays = Number.isNaN(time) ? 0 : Math.ceil((time - now.getTime()) / DAY_MS);
         return { ...item, urgency: diffDays };
       })
       .sort((a, b) => a.urgency - b.urgency);
@@ -254,7 +275,9 @@ class PantryStore {
         ingredientsUsed: [item.name],
         servings: 1,
         cleanupLevel: 'minimal',
-        reason: `Uses ${item.name}, which expires in ${item.urgency} day(s).`
+        reason: Number.isNaN(item.urgency)
+          ? `Uses ${item.name}, which has an unknown expiration.`
+          : `Uses ${item.name}, which expires in ${item.urgency} day(s).`
       };
     });
 
@@ -264,14 +287,10 @@ class PantryStore {
   getSyncSnapshot() {
     return {
       version: this.version,
-      pantry: this.items,
-      groceryList: this.groceryList,
-      notifications: this.notifications
+      pantry: this.items.map((i) => ({ ...i })),
+      groceryList: this.groceryList.map((i) => ({ ...i })),
+      notifications: this.notifications.map((i) => ({ ...i }))
     };
-  }
-
-  bumpVersion() {
-    this.version += 1;
   }
 
   getUserAllergies(username) {

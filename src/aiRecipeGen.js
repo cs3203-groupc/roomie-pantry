@@ -38,10 +38,12 @@ try {
 const ALLERGEN_MAP = {
   dairy: [
     'dairy', 'milk', 'cheese', 'butter', 'cream', 'yogurt', 'whey', 'ghee', 'casein',
-    'cheddar', 'mozzarella', 'parmesan', 'swiss', 'provolone', 'gouda', 'brie', 'ricotta', 'feta'
+    'cheddar', 'mozzarella', 'parmesan', 'swiss', 'provolone', 'gouda', 'brie', 'ricotta', 'feta',
+    'paneer', 'gruyere', 'half and half', 'halloumi'
   ],
   cheese: [
-    'cheese', 'cheddar', 'mozzarella', 'parmesan', 'swiss', 'provolone', 'gouda', 'brie', 'ricotta', 'feta'
+    'cheese', 'cheddar', 'mozzarella', 'parmesan', 'swiss', 'provolone', 'gouda', 'brie', 'ricotta', 'feta',
+    'paneer', 'gruyere', 'halloumi'
   ],
   peanuts: ['peanut', 'peanuts'],
   peanut: ['peanut', 'peanuts'],
@@ -59,40 +61,94 @@ const ALLERGEN_MAP = {
   ],
   gluten: [
     'gluten', 'wheat', 'flour', 'bread', 'pasta', 'barley', 'rye',
-    'seitan', 'semolina', 'couscous', 'noodles', 'ramen', 'udon', 'spaghetti'
+    'seitan', 'semolina', 'couscous', 'noodles', 'ramen', 'udon', 'spaghetti',
+    'farro', 'spelt', 'malt', 'bagel'
   ],
-  soy: ['soy', 'soya', 'tofu', 'edamame', 'tamari', 'soy sauce'],
-  egg: ['egg', 'eggs'],
-  eggs: ['egg', 'eggs'],
+  soy: ['soy', 'soya', 'tofu', 'edamame', 'tamari', 'soy sauce', 'miso', 'tempeh'],
+  egg: ['egg', 'eggs', 'mayo', 'mayonnaise', 'aioli'],
+  eggs: ['egg', 'eggs', 'mayo', 'mayonnaise', 'aioli'],
   fish: [
     'fish', 'salmon', 'tuna', 'cod', 'halibut', 'trout', 'tilapia', 'anchovy', 'anchovies',
     'sardine', 'sardines', 'mackerel'
   ],
   shellfish: [
     'shellfish', 'shrimp', 'crab', 'lobster', 'prawn', 'prawns', 'clam', 'clams',
-    'mussel', 'mussels', 'oyster', 'oysters', 'scallop', 'scallops', 'squid', 'calamari'
+    'mussel', 'mussels', 'oyster', 'oysters', 'scallop', 'scallops', 'squid', 'calamari', 'crawfish'
   ],
   sesame: ['sesame', 'tahini']
 };
 
+const HOMOGLYPHS = {
+  '\u0430': 'a', '\u0441': 'c', '\u0435': 'e', '\u0456': 'i', '\u0458': 'j',
+  '\u043e': 'o', '\u0440': 'p', '\u0455': 's', '\u0445': 'x', '\u0443': 'y',
+  '\u0410': 'a', '\u0412': 'b', '\u0415': 'e', '\u041a': 'k', '\u041c': 'm',
+  '\u041d': 'h', '\u041e': 'o', '\u0420': 'p', '\u0421': 'c', '\u0422': 't', '\u0425': 'x'
+};
+
+function normalizeFoodText(str) {
+  if (!str) return '';
+  return String(str)
+    .normalize('NFKC')
+    .replace(/[\u0410-\u0458]/g, (ch) => HOMOGLYPHS[ch] || ch)
+    .toLowerCase()
+    .trim();
+}
+
+const NON_ALLERGEN_COMPOUNDS = {
+  nut: ['butternut', 'doughnut'],
+  nuts: ['butternut', 'doughnut'],
+  egg: ['eggplant'],
+  eggs: ['eggplant'],
+  pea: ['pear'],
+  peas: ['pear'],
+  ham: ['graham'],
+  oat: ['goat']
+};
+
+function termMatches(text, term) {
+  if (text === term) return true;
+  const bannedCompounds = Object.prototype.hasOwnProperty.call(NON_ALLERGEN_COMPOUNDS, term)
+    ? NON_ALLERGEN_COMPOUNDS[term]
+    : null;
+  if (Array.isArray(bannedCompounds) && bannedCompounds.some((bc) => text.includes(bc))) {
+    const stripped = bannedCompounds.reduce((acc, bc) => acc.replaceAll(bc, ''), text);
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}(s|es)?\\b`, 'i');
+    return regex.test(stripped);
+  }
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`\\b${escaped}(s|es)?\\b`, 'i');
+  return regex.test(text);
+}
+
 function matchesAllergen(ingredient, allergen) {
   if (!ingredient || !allergen) return false;
-  const ingLower = String(ingredient).toLowerCase().trim();
-  const allLower = String(allergen).toLowerCase().trim();
+  const ingLower = normalizeFoodText(ingredient);
+  const allLower = normalizeFoodText(allergen);
   if (!ingLower || !allLower) return false;
 
-  if (ingLower === allLower || ingLower.includes(allLower) || allLower.includes(ingLower)) {
+  if (ingLower === allLower) {
     return true;
   }
 
-  const mapped = ALLERGEN_MAP[allLower];
-  if (mapped && mapped.some((term) => ingLower.includes(term) || term.includes(ingLower))) {
+  if (termMatches(ingLower, allLower)) {
     return true;
+  }
+  if (allLower.endsWith('s') && termMatches(ingLower, allLower.slice(0, -1))) {
+    return true;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(ALLERGEN_MAP, allLower)) {
+    const mapped = ALLERGEN_MAP[allLower];
+    if (Array.isArray(mapped) && mapped.some((term) => termMatches(ingLower, term))) {
+      return true;
+    }
   }
 
   for (const [category, terms] of Object.entries(ALLERGEN_MAP)) {
+    if (!Array.isArray(terms)) continue;
     if (category === allLower || terms.includes(allLower)) {
-      if (terms.some((t) => ingLower.includes(t) || t.includes(ingLower))) {
+      if (terms.some((t) => termMatches(ingLower, t))) {
         return true;
       }
     }

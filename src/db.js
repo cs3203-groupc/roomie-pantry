@@ -95,9 +95,9 @@ class SqliteStorage {
     }));
 
     const allergyRows = this.db.prepare('SELECT * FROM user_allergies ORDER BY username ASC, allergy ASC').all();
-    const userAllergies = {};
+    const userAllergies = Object.create(null);
     for (const row of allergyRows) {
-      if (!userAllergies[row.username]) {
+      if (!Object.prototype.hasOwnProperty.call(userAllergies, row.username) || !Array.isArray(userAllergies[row.username])) {
         userAllergies[row.username] = [];
       }
       userAllergies[row.username].push(row.allergy);
@@ -202,25 +202,28 @@ class SqliteStorage {
 
   getUserAllergies(username) {
     if (!username) return [];
-    const rows = this.db.prepare('SELECT allergy FROM user_allergies WHERE username = ? ORDER BY allergy ASC').all(username);
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
+    const rows = this.db.prepare('SELECT allergy FROM user_allergies WHERE username = ? ORDER BY allergy ASC').all(userStr);
     return rows.map((r) => r.allergy);
   }
 
   saveUserAllergy(username, allergy) {
     if (!username || !allergy) return;
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
     const stmt = this.db.prepare(`
       INSERT OR IGNORE INTO user_allergies (username, allergy, createdAt)
       VALUES (?, ?, ?)
     `);
-    stmt.run(username, String(allergy).trim().toLowerCase(), new Date().toISOString());
+    stmt.run(userStr, String(allergy).trim().toLowerCase(), new Date().toISOString());
   }
 
   deleteUserAllergy(username, allergy) {
     if (!username || !allergy) return;
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
     const stmt = this.db.prepare(`
       DELETE FROM user_allergies WHERE username = ? AND allergy = ?
     `);
-    stmt.run(username, String(allergy).trim().toLowerCase());
+    stmt.run(userStr, String(allergy).trim().toLowerCase());
   }
 
   close() {
@@ -277,11 +280,14 @@ class FirebaseStorage {
     return Boolean(this.firestore);
   }
 
-  async loadState() {
+  loadState() {
     if (!this.isAvailable()) {
       return this.fallbackStorage.loadState();
     }
+    return this._loadStateFromFirestore();
+  }
 
+  async _loadStateFromFirestore() {
     try {
       const [pantrySnap, grocerySnap, notifSnap, metaSnap] = await Promise.all([
         this.firestore.collection('pantry_items').orderBy('id', 'asc').get(),
