@@ -109,9 +109,13 @@ class PantryStore {
     });
   }
 
-  deletePantryItem(itemId) {
+  deletePantryItem(itemId, requester = null) {
     const idx = this.items.findIndex((item) => item.id === itemId);
     if (idx === -1) return false;
+    const item = this.items[idx];
+    if (requester && !item.isShared && item.owner && item.owner !== requester) {
+      return false;
+    }
     this.items.splice(idx, 1);
     if (this.storage) {
       this.storage.deletePantryItem(itemId);
@@ -295,10 +299,11 @@ class PantryStore {
 
   getUserAllergies(username) {
     if (!username) return [];
+    const userStr = Array.isArray(username) ? String(username[0]) : String(username);
     if (this.storage && typeof this.storage.getUserAllergies === 'function') {
-      return this.storage.getUserAllergies(username);
+      return this.storage.getUserAllergies(userStr);
     }
-    const userSet = this.userAllergies.get(username);
+    const userSet = this.userAllergies.get(userStr);
     return userSet ? Array.from(userSet) : [];
   }
 

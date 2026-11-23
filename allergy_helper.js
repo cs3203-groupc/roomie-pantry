@@ -1,5 +1,7 @@
 
 class AllergyHelper {
+    static ALLERGY_REGEX = /^[A-Za-z][A-Za-z -]{1,49}$/;
+
     constructor() {
         this.allergies = new Set();
     }
@@ -11,7 +13,11 @@ class AllergyHelper {
 
         const cleaned = item.trim();
 
-        if (cleaned.length < 2) {
+        if (cleaned.length < 2 || cleaned.length > 50) {
+            return false;
+        }
+
+        if (!AllergyHelper.ALLERGY_REGEX.test(cleaned)) {
             return false;
         }
 

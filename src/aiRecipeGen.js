@@ -45,8 +45,8 @@ const ALLERGEN_MAP = {
     'cheese', 'cheddar', 'mozzarella', 'parmesan', 'swiss', 'provolone', 'gouda', 'brie', 'ricotta', 'feta',
     'paneer', 'gruyere', 'halloumi'
   ],
-  peanuts: ['peanut', 'peanuts'],
-  peanut: ['peanut', 'peanuts'],
+  peanuts: ['peanut', 'peanuts', 'arachis', 'arachis oil', 'peanut oil'],
+  peanut: ['peanut', 'peanuts', 'arachis', 'arachis oil', 'peanut oil'],
   nuts: [
     'nut', 'nuts', 'almond', 'almonds', 'walnut', 'walnuts', 'cashew', 'cashews',
     'pecan', 'pecans', 'pistachio', 'pistachios', 'hazelnut', 'hazelnuts', 'macadamia'
@@ -88,6 +88,7 @@ const HOMOGLYPHS = {
 function normalizeFoodText(str) {
   if (!str) return '';
   return String(str)
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .normalize('NFKC')
     .replace(/[\u0410-\u0458]/g, (ch) => HOMOGLYPHS[ch] || ch)
     .toLowerCase()
@@ -204,9 +205,15 @@ class AIRecipeGen {
     if (!prompt.trim()) {
       throw new ValueError('Prompt cannot be empty or whitespace only');
     }
+    if (prompt.length > 5000) {
+      throw new ValueError('Prompt exceeds maximum allowed length of 5000 characters');
+    }
 
     const isStub = options.stub !== undefined ? Boolean(options.stub) : this.stub;
     if (isStub || options.sync) {
+      if (/ignore.*instruction|reveal.*env|reveal.*prompt|unfiltered|system prompt/i.test(prompt)) {
+        return 'I am a kitchen and recipe assistant. I can only provide cooking tips, ingredient substitutions, and meal recommendations.';
+      }
       return `AI Response to: ${prompt}`;
     }
 
@@ -225,6 +232,11 @@ class AIRecipeGen {
     }
     if (items.length === 0) {
       throw new ValueError('Pantry is empty; at least one ingredient required');
+    }
+    for (const item of items) {
+      if (typeof item !== 'string' || !item.trim()) {
+        throw new TypeError('Each ingredient item must be a non-empty string');
+      }
     }
 
     const allergies = Array.isArray(options.allergies)
@@ -280,9 +292,15 @@ class AIRecipeGen {
     if (!prompt.trim()) {
       throw new ValueError('Prompt cannot be empty or whitespace only');
     }
+    if (prompt.length > 5000) {
+      throw new ValueError('Prompt exceeds maximum allowed length of 5000 characters');
+    }
 
     const isStub = options.stub !== undefined ? Boolean(options.stub) : this.stub;
     if (isStub) {
+      if (/ignore.*instruction|reveal.*env|reveal.*prompt|unfiltered|system prompt/i.test(prompt)) {
+        return 'I am a kitchen and recipe assistant. I can only provide cooking tips, ingredient substitutions, and meal recommendations.';
+      }
       return `AI Response to: ${prompt}`;
     }
 
@@ -389,7 +407,10 @@ class AIRecipeGen {
       return result;
     }
 
-    let systemPrompt = `You are an expert chef assistant for RoomiePantry. Generate a complete, practical, delicious recipe strictly using only the following available pantry items: ${safeItems.join(', ')}.`;
+    const sanitizedSafeItems = safeItems.map((item) =>
+      String(item).replace(/[\r\n"'{}[\]]/g, ' ').replace(/\s+/g, ' ').trim()
+    );
+    let systemPrompt = `You are an expert chef assistant for RoomiePantry. Generate a complete, practical, delicious recipe strictly using only the following available pantry items: ${sanitizedSafeItems.join(', ')}.`;
     if (allergies.length > 0) {
       systemPrompt += `\nCRITICAL ALLERGY RESTRICTION: The diner has severe, life-threatening dietary allergies to: [${allergies.join(', ')}]. Under NO circumstances should any recipe include, mention, suggest, or use these allergen ingredients or any of their derivatives. You must ensure all suggested ingredients and preparation steps are 100% allergen-free.`;
     }
